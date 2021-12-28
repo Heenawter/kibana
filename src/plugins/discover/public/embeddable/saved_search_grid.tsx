@@ -5,7 +5,7 @@
  * in compliance with, at your election, the Elastic License 2.0 or the Server
  * Side Public License, v 1.
  */
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { I18nProvider } from '@kbn/i18n-react';
 import { EuiFlexGroup, EuiFlexItem } from '@elastic/eui';
 import { DiscoverGrid, DiscoverGridProps } from '../components/discover_grid/discover_grid';
@@ -18,9 +18,7 @@ export interface DiscoverGridEmbeddableProps extends DiscoverGridProps {
   totalHitCount: number;
 }
 
-export const DataGridMemoized = React.memo((props: DiscoverGridProps) => (
-  <DiscoverGrid {...props} />
-));
+export const DataGridMemoized = memo(DiscoverGrid);
 
 export function DiscoverGridEmbeddable(props: DiscoverGridEmbeddableProps) {
   const services = getServices();
