@@ -6,12 +6,11 @@
  * Side Public License, v 1.
  */
 
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FormattedMessage } from '@kbn/i18n-react';
 import './discover_grid.scss';
 import {
   EuiDataGridSorting,
-  EuiDataGridStyle,
   EuiDataGridProps,
   EuiDataGrid,
   EuiScreenReaderOnly,
@@ -20,17 +19,7 @@ import {
   htmlIdGenerator,
   EuiLoadingSpinner,
   EuiIcon,
-  EuiTour,
   EuiTourStep,
-  EuiButtonEmpty,
-  EuiForm,
-  EuiFormRow,
-  EuiButton,
-  EuiTextArea,
-  EuiTourState,
-  useEuiTour,
-  EuiTourStepProps,
-  EuiTourActions,
 } from '@elastic/eui';
 import { flattenHit, DataView } from '../../../../data/common';
 import { DocViewFilterFn } from '../../services/doc_views/doc_views_types';
@@ -62,8 +51,7 @@ import { SortPairArr } from '../doc_table/lib/get_sort';
 import { getFieldsToShow } from '../../utils/get_fields_to_show';
 import { ElasticSearchHit } from '../../types';
 import { useRowHeightsOptions } from '../../utils/use_row_heights_options';
-import { demoTourSteps, tourConfig, STORAGE_KEY, buttomButtons } from './discover_grid_tour';
-import { findTestSubject } from '@elastic/eui/lib/test';
+import { DiscoverTourDetails, buttomButtons } from './discover_grid_tour';
 
 interface SortObj {
   id: string;
@@ -177,6 +165,10 @@ export interface DiscoverGridProps {
    */
   rowHeightState?: number;
   /**
+   * The state of the Discover tour
+   */
+  tour: DiscoverTourDetails;
+  /**
    * Update row height state
    */
   onUpdateRowHeight?: (rowHeight: number) => void;
@@ -219,28 +211,11 @@ export const DiscoverGrid = (
     className,
     rowHeightState,
     onUpdateRowHeight,
+    tour,
   }: DiscoverGridProps
 ) => {
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [isFilterActive, setIsFilterActive] = useState(false);
-
-  const initialState = localStorage.getItem(STORAGE_KEY);
-  let tourState: EuiTourState;
-  if (initialState) {
-    tourState = JSON.parse(initialState);
-    tourState = { ...tourState, isTourActive: true };
-  } else {
-    tourState = tourConfig;
-  }
-
-  const [[euiTourStepOne, euiTourStepTwo, euiTourStepThree], actions, reducerState] = useEuiTour(
-    demoTourSteps,
-    tourState
-  );
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(reducerState));
-  }, [reducerState]);
 
   const displayedColumns = getDisplayedColumns(columns, indexPattern);
   const defaultColumns = displayedColumns.includes('_source');
@@ -393,11 +368,8 @@ export const DiscoverGrid = (
     return { columns: sortingColumns, onSort: () => {} };
   }, [sortingColumns, onTableSort, isSortEnabled]);
   const lead = useMemo(
-    () =>
-      getLeadControlColumns(euiTourStepOne, actions).filter(({ id }) =>
-        controlColumnIds.includes(id)
-      ),
-    [controlColumnIds, euiTourStepOne, actions]
+    () => getLeadControlColumns(tour).filter(({ id }) => controlColumnIds.includes(id)),
+    [controlColumnIds, tour]
   );
 
   const additionalControls = useMemo(
@@ -431,7 +403,7 @@ export const DiscoverGrid = (
               left: {
                 append: additionalControls,
                 prepend: (
-                  <EuiTourStep {...euiTourStepTwo} footerAction={buttomButtons(actions)}>
+                  <EuiTourStep {...tour.steps[1]} footerAction={buttomButtons(tour)}>
                     <div
                       style={{
                         visibility: 'hidden',
@@ -444,7 +416,7 @@ export const DiscoverGrid = (
                 ),
               },
               right: (
-                <EuiTourStep {...euiTourStepThree}>
+                <EuiTourStep {...tour.steps[2]} footerAction={buttomButtons(tour)}>
                   <div
                     style={{
                       visibility: 'hidden',
@@ -458,15 +430,7 @@ export const DiscoverGrid = (
             },
             showDisplaySelector,
           },
-    [
-      defaultColumns,
-      additionalControls,
-      isSortEnabled,
-      euiTourStepTwo,
-      euiTourStepThree,
-      actions,
-      showDisplaySelector,
-    ]
+    [defaultColumns, additionalControls, isSortEnabled, tour, showDisplaySelector]
   );
 
   const rowHeightsOptions = useRowHeightsOptions({
