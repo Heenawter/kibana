@@ -7,7 +7,14 @@
  */
 
 import React, { useContext, useEffect } from 'react';
-import { EuiButtonIcon, EuiDataGridCellValueElementProps, EuiToolTip } from '@elastic/eui';
+import {
+  EuiButtonIcon,
+  EuiDataGridCellValueElementProps,
+  EuiToolTip,
+  EuiTourStep,
+  EuiStatelessTourStep,
+  EuiTourActions,
+} from '@elastic/eui';
 import {
   euiLightVars as themeLight,
   euiDarkVars as themeDark,
@@ -15,10 +22,16 @@ import {
 import { i18n } from '@kbn/i18n';
 import { DiscoverGridContext } from './discover_grid_context';
 import { EsHitRecord } from '../../application/types';
+import { buttomButtons } from './discover_grid_tour';
+
 /**
  * Button to expand a given row
  */
-export const ExpandButton = ({ rowIndex, setCellProps }: EuiDataGridCellValueElementProps) => {
+export const ExpandButton = (
+  tourStep: EuiStatelessTourStep,
+  tourActions: EuiTourActions,
+  { rowIndex, setCellProps }: EuiDataGridCellValueElementProps
+) => {
   const { expanded, setExpanded, rows, isDarkMode } = useContext(DiscoverGridContext);
   const current = rows[rowIndex];
   useEffect(() => {
@@ -42,7 +55,7 @@ export const ExpandButton = ({ rowIndex, setCellProps }: EuiDataGridCellValueEle
     defaultMessage: 'Toggle dialog with details',
   });
 
-  return (
+  const toolTipIcon = (
     <EuiToolTip content={buttonLabel} delay="long">
       <EuiButtonIcon
         size="xs"
@@ -56,4 +69,12 @@ export const ExpandButton = ({ rowIndex, setCellProps }: EuiDataGridCellValueEle
       />
     </EuiToolTip>
   );
+  if (rowIndex === 0) {
+    return (
+      <EuiTourStep {...tourStep} footerAction={buttomButtons(tourActions)}>
+        {toolTipIcon}
+      </EuiTourStep>
+    );
+  }
+  return toolTipIcon;
 };
