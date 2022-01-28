@@ -441,7 +441,7 @@ export function DiscoverSidebarComponent({
         </EuiFlexItem>
         <EuiSpacer size="xs" />
         <EuiPopover
-          anchorPosition="rightDown"
+          anchorPosition="rightUp"
           display="block"
           button={callout}
           isOpen={isPopoverOpen}
