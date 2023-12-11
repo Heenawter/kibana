@@ -31,6 +31,7 @@ import { TimePickerControl } from '../components/time_picker_control';
 import { getDefaultComponentState, timePickerReducers } from '../time_picker_reducers';
 import { TimePickerReduxState } from '../types';
 import { i18n } from '@kbn/i18n';
+import { ControlsTimePickerService } from '../../services/time_picker/types';
 
 const diffDataFetchProps = (
   current?: TimeSliderDataFetchProps,
@@ -79,11 +80,13 @@ export class TimePickerEmbeddable
   // Controls services
   private dataService: ControlsDataService;
   private dataViewsService: ControlsDataViewsService;
+  private timePickerService: ControlsTimePickerService;
 
   // Internal data fetching state for this input control.
   private dataView?: DataView;
   private field?: DataViewField;
   private filters: Filter[] = [];
+  private abortController?: AbortController;
 
   // state management
   public select: TimePickerReduxEmbeddableTools['select'];
@@ -102,7 +105,11 @@ export class TimePickerEmbeddable
     super(input, output, parent); // get filters for initial output...
 
     // Destructure controls services
-    ({ data: this.dataService, dataViews: this.dataViewsService } = pluginServices.getServices());
+    ({
+      data: this.dataService,
+      dataViews: this.dataViewsService,
+      timePicker: this.timePickerService,
+    } = pluginServices.getServices());
 
     const reduxEmbeddableTools = reduxToolsPackage.createReduxEmbeddableTools<
       TimePickerReduxState,
@@ -126,10 +133,7 @@ export class TimePickerEmbeddable
       this.setInitializationFinished();
     }
 
-    const { dataView, field } = await this.getCurrentDataViewAndField();
-    if (!dataView || !field) throw new Error();
-
-    await this.fetchMinMax({ dataView, field });
+    await this.runTimePickerQuery();
 
     if (initialValue) {
       this.setInitializationFinished();
@@ -163,7 +167,7 @@ export class TimePickerEmbeddable
               const { dataView, field } = await this.getCurrentDataViewAndField();
               if (!dataView || !field) throw new Error();
 
-              await this.fetchMinMax({ dataView, field });
+              await this.runTimePickerQuery();
             } catch (e) {
               this.onLoadingError(e.message);
             }
@@ -227,56 +231,51 @@ export class TimePickerEmbeddable
     return { dataView: this.dataView, field: this.field };
   };
 
-  private fetchMinMax = async ({
-    dataView,
-    field,
-  }: {
-    dataView: DataView;
-    field: DataViewField;
-  }): Promise<{ min?: number; max?: number }> => {
-    const searchSource = await this.dataService.searchSource.create();
-    searchSource.setField('size', 0);
-    searchSource.setField('index', dataView);
+  private runTimePickerQuery = async () => {
+    const { dataView, field } = await this.getCurrentDataViewAndField();
+    if (!dataView || !field) return;
 
-    const { ignoreParentSettings, query } = this.getInput();
+    this.dispatch.setLoading(true);
+    const {
+      // ignoreParentSettings,
+      filters,
+      query,
+      timeRange: globalTimeRange,
+      timeslice,
+    } = this.getInput();
+    if (this.abortController) this.abortController.abort();
+    this.abortController = new AbortController();
+    const timeRange =
+      timeslice !== undefined
+        ? {
+            from: new Date(timeslice[0]).toISOString(),
+            to: new Date(timeslice[1]).toISOString(),
+            mode: 'absolute' as 'absolute',
+          }
+        : globalTimeRange;
 
-    if (!ignoreParentSettings?.ignoreFilters) {
-      searchSource.setField('filter', this.filters);
-    }
+    const response = await this.timePickerService.runTimePickerRequest(
+      {
+        field,
+        query,
+        filters,
+        dataView,
+        timeRange,
+      },
+      this.abortController.signal
+    );
 
-    if (query) {
-      searchSource.setField('query', query);
-    }
-
-    const aggBody: any = {};
-
-    if (field) {
-      if (field.scripted) {
-        aggBody.script = {
-          source: field.script,
-          lang: field.lang,
-        };
-      } else {
-        aggBody.field = field.name;
+    if (this.timePickerService.timePickerResponseWasFailure(response)) {
+      if (response.error === 'aborted') {
+        return;
       }
+      this.dispatch.setErrorMessage(response.error.message);
+      return;
     }
 
-    const aggs = {
-      maxAgg: {
-        max: aggBody,
-      },
-      minAgg: {
-        min: aggBody,
-      },
-    };
-    searchSource.setField('aggs', aggs);
-
-    const resp = await lastValueFrom(searchSource.fetch$());
-    const min = get(resp, 'rawResponse.aggregations.minAgg.value');
-    const max = get(resp, 'rawResponse.aggregations.maxAgg.value');
-
+    const { min, max } = response;
+    console.log('minmax', min, max);
     this.dispatch.setMinMax([min, max]);
-    return { min, max };
   };
 
   public destroy = () => {

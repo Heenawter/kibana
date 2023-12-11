@@ -26,6 +26,7 @@ import { optionsListServiceFactory } from './options_list/options_list_service';
 import { overlaysServiceFactory } from './overlays/overlays_service';
 import { settingsServiceFactory } from './settings/settings_service';
 import { unifiedSearchServiceFactory } from './unified_search/unified_search_service';
+import { timePickerServiceFactory } from './time_picker/time_picker_service';
 
 export const providers: PluginServiceProviders<
   ControlsServices,
@@ -37,6 +38,7 @@ export const providers: PluginServiceProviders<
   embeddable: new PluginServiceProvider(embeddableServiceFactory),
   http: new PluginServiceProvider(httpServiceFactory),
   optionsList: new PluginServiceProvider(optionsListServiceFactory, ['data', 'http']),
+  timePicker: new PluginServiceProvider(timePickerServiceFactory, ['data', 'http']),
   overlays: new PluginServiceProvider(overlaysServiceFactory),
   settings: new PluginServiceProvider(settingsServiceFactory),
   core: new PluginServiceProvider(coreServiceFactory),
