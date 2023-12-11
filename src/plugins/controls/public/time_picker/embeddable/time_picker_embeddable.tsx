@@ -17,14 +17,15 @@ import { Filter } from '@kbn/es-query';
 import { ReduxEmbeddableTools, ReduxToolsPackage } from '@kbn/presentation-util-plugin/public';
 import { KibanaThemeProvider } from '@kbn/react-kibana-context-theme';
 
-import { ControlOutput, RangeSliderEmbeddableInput, RANGE_SLIDER_CONTROL } from '../..';
+import { ControlOutput } from '../..';
 import { pluginServices } from '../../services';
 import { ControlsDataService } from '../../services/data/types';
 import { ControlsDataViewsService } from '../../services/data_views/types';
 import { IClearableControl } from '../../types';
-import { RangeSliderControl } from '../components/time_picker_control';
+import { TimePickerControl } from '../components/time_picker_control';
 import { getDefaultComponentState, timePickerReducers } from '../time_picker_reducers';
 import { TimePickerReduxState } from '../types';
+import { TimePickerEmbeddableInput, TIME_PICKER_CONTROL } from '../../../common/time_picker/types';
 
 export const TimePickerControlContext = createContext<TimePickerEmbeddable | null>(null);
 export const useTimePicker = (): TimePickerEmbeddable => {
@@ -41,10 +42,10 @@ type TimePickerReduxEmbeddableTools = ReduxEmbeddableTools<
 >;
 
 export class TimePickerEmbeddable
-  extends Embeddable<RangeSliderEmbeddableInput, ControlOutput>
+  extends Embeddable<TimePickerEmbeddableInput, ControlOutput>
   implements IClearableControl
 {
-  public readonly type = RANGE_SLIDER_CONTROL;
+  public readonly type = TIME_PICKER_CONTROL;
   public deferEmbeddableLoad = true;
 
   private subscriptions: Subscription = new Subscription();
@@ -69,7 +70,7 @@ export class TimePickerEmbeddable
 
   constructor(
     reduxToolsPackage: ReduxToolsPackage,
-    input: RangeSliderEmbeddableInput,
+    input: TimePickerEmbeddableInput,
     output: ControlOutput,
     parent?: IContainer
   ) {
@@ -128,7 +129,6 @@ export class TimePickerEmbeddable
   public clearSelections: () => void = () => {
     console.log('clear selections');
   };
-
   public destroy = () => {
     super.destroy();
     this.cleanupStateTools();
@@ -145,7 +145,7 @@ export class TimePickerEmbeddable
       <KibanaThemeProvider theme={pluginServices.getServices().core.theme}>
         <ControlsServicesProvider>
           <TimePickerControlContext.Provider value={this}>
-            <RangeSliderControl />
+            <TimePickerControl />
           </TimePickerControlContext.Provider>
         </ControlsServicesProvider>
       </KibanaThemeProvider>,

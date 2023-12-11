@@ -298,6 +298,7 @@ export const ControlEditor = ({
                   const newDefaultTitle = field.displayName ?? field.name;
                   setDefaultTitle(newDefaultTitle);
                   setSelectedField(field.name);
+                  console.log('hereee');
                   setSelectedControlType(
                     fieldRegistry?.[field.displayName].compatibleControlTypes[0]
                   );

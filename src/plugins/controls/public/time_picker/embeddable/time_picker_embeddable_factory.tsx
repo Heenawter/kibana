@@ -19,6 +19,7 @@ import {
 } from '../../../common/time_picker/time_picker_persistable_state';
 import { TimePickerEmbeddableInput, TIME_PICKER_CONTROL } from '../../../common/time_picker/types';
 import { ControlEmbeddable, IEditableControlFactory } from '../../types';
+import { TimePickerEditorOptions } from '../components/time_picker_editor_options';
 
 export class TimePickerEmbeddableFactory
   implements EmbeddableFactoryDefinition, IEditableControlFactory<TimePickerEmbeddableInput>
@@ -49,6 +50,8 @@ export class TimePickerEmbeddableFactory
       new TimePickerEmbeddable(reduxEmbeddablePackage, initialInput, {}, parent)
     );
   }
+
+  public controlEditorOptionsComponent = TimePickerEditorOptions;
 
   public presaveTransformFunction = (
     newInput: Partial<TimePickerEmbeddableInput>,

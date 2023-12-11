@@ -14,6 +14,7 @@ export type TimeValue = [string, string];
 
 export interface TimePickerEmbeddableInput extends DataControlInput {
   value?: TimeValue;
+  singleSelect?: boolean;
 }
 
 export type TimePickerInputWithType = Partial<TimePickerEmbeddableInput> & { type: string };
