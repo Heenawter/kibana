@@ -7,31 +7,36 @@
  */
 
 import deepEqual from 'fast-deep-equal';
-import { get } from 'lodash';
 import React, { createContext, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { batch } from 'react-redux';
-import { lastValueFrom, Subscription, switchMap } from 'rxjs';
+import { Subscription, switchMap } from 'rxjs';
 import { distinctUntilChanged, map, skip } from 'rxjs/operators';
-import moment from 'moment';
 
 import { DataView, DataViewField } from '@kbn/data-views-plugin/public';
 import { Embeddable, IContainer } from '@kbn/embeddable-plugin/public';
-import { compareFilters, COMPARE_ALL_OPTIONS, Filter } from '@kbn/es-query';
+import {
+  buildRangeFilter,
+  compareFilters,
+  COMPARE_ALL_OPTIONS,
+  Filter,
+  RangeFilterParams,
+} from '@kbn/es-query';
 import { ReduxEmbeddableTools, ReduxToolsPackage } from '@kbn/presentation-util-plugin/public';
 import { KibanaThemeProvider } from '@kbn/react-kibana-context-theme';
 
+import { i18n } from '@kbn/i18n';
 import { ControlOutput } from '../..';
 import { TimePickerEmbeddableInput, TIME_PICKER_CONTROL } from '../../../common/time_picker/types';
 import { pluginServices } from '../../services';
 import { ControlsDataService } from '../../services/data/types';
 import { ControlsDataViewsService } from '../../services/data_views/types';
+import { ControlsTimePickerService } from '../../services/time_picker/types';
 import { ControlInput, IClearableControl } from '../../types';
 import { TimePickerControl } from '../components/time_picker_control';
 import { getDefaultComponentState, timePickerReducers } from '../time_picker_reducers';
 import { TimePickerReduxState } from '../types';
-import { i18n } from '@kbn/i18n';
-import { ControlsTimePickerService } from '../../services/time_picker/types';
+import { start } from 'repl';
 
 const diffDataFetchProps = (
   current?: TimeSliderDataFetchProps,
@@ -51,6 +56,8 @@ interface TimeSliderDataFetchProps {
   query?: ControlInput['query'];
   filters?: ControlInput['filters'];
   validate?: boolean;
+  startDate?: number;
+  endDate?: number;
 }
 
 export const TimePickerControlContext = createContext<TimePickerEmbeddable | null>(null);
@@ -128,14 +135,16 @@ export class TimePickerEmbeddable
   }
 
   private initialize = async () => {
-    const initialValue = this.getInput().value;
-    if (!initialValue) {
+    const { startDate, endDate } = this.getInput();
+    let initializationFinished = false;
+    if (!startDate && !endDate) {
       this.setInitializationFinished();
+      initializationFinished = true;
     }
 
     await this.runTimePickerQuery();
 
-    if (initialValue) {
+    if (!initializationFinished) {
       this.setInitializationFinished();
     }
 
@@ -153,6 +162,8 @@ export class TimePickerEmbeddable
         timeslice: newInput.timeslice,
         filters: newInput.filters,
         query: newInput.query,
+        startDate: newInput.startDate,
+        endDate: newInput.endDate,
       })),
       distinctUntilChanged(diffDataFetchProps),
       skip(1)
@@ -194,7 +205,10 @@ export class TimePickerEmbeddable
   };
 
   public clearSelections: () => void = () => {
-    console.log('clear selections');
+    batch(() => {
+      this.dispatch.setStartDate(undefined);
+      this.dispatch.setEndDate(undefined);
+    });
   };
 
   private getCurrentDataViewAndField = async (): Promise<{
@@ -232,6 +246,7 @@ export class TimePickerEmbeddable
   };
 
   private runTimePickerQuery = async () => {
+    console.log('runTimePickerQuery');
     const { dataView, field } = await this.getCurrentDataViewAndField();
     if (!dataView || !field) return;
 
@@ -276,6 +291,41 @@ export class TimePickerEmbeddable
     const { min, max } = response;
     console.log('minmax', min, max);
     this.dispatch.setMinMax([min, max]);
+
+    if (min && max) {
+      // publish filter
+      const newFilters = await this.buildFilter();
+      batch(() => {
+        this.dispatch.setErrorMessage(undefined);
+        this.dispatch.setLoading(false);
+        this.dispatch.publishFilters(newFilters);
+      });
+    }
+  };
+
+  private buildFilter = async () => {
+    const { startDate, endDate } = this.getState().explicitInput;
+    const { minMax } = this.getState().componentState;
+
+    if (!startDate && !endDate) {
+      return [];
+    }
+    const { dataView, field } = await this.getCurrentDataViewAndField();
+    if (!dataView || !field) return;
+
+    const params = {} as RangeFilterParams;
+    if (startDate) {
+      params.gte = Math.max(startDate, minMax?.[0] ?? -1);
+    }
+    if (endDate) {
+      params.lte = Math.min(endDate, minMax?.[1] ?? Infinity);
+    }
+    const newFilter = buildRangeFilter(field, params, dataView);
+
+    if (!newFilter) return [];
+
+    newFilter.meta.key = field?.name;
+    return [newFilter];
   };
 
   public destroy = () => {

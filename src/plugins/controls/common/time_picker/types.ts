@@ -12,10 +12,11 @@ import { DataControlInput } from '../types';
 
 export const TIME_PICKER_CONTROL = 'timePickerControl';
 
-export type TimeValue = [string, string];
+export type TimeValue = [number | undefined, number | undefined];
 
 export interface TimePickerEmbeddableInput extends DataControlInput {
-  value?: TimeValue;
+  startDate?: number;
+  endDate?: number;
   singleSelect?: boolean;
 }
 

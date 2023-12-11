@@ -19,17 +19,27 @@ export const getDefaultComponentState = (): TimePickerReduxState['componentState
 });
 
 export const timePickerReducers = {
+  setSingleDate: (state: WritableDraft<TimePickerReduxState>, action: PayloadAction<number>) => {
+    state.explicitInput.startDate = action.payload;
+    state.explicitInput.endDate = action.payload;
+  },
+  setStartDate: (
+    state: WritableDraft<TimePickerReduxState>,
+    action: PayloadAction<number | undefined>
+  ) => {
+    state.explicitInput.startDate = action.payload;
+  },
+  setEndDate: (
+    state: WritableDraft<TimePickerReduxState>,
+    action: PayloadAction<number | undefined>
+  ) => {
+    state.explicitInput.endDate = action.payload;
+  },
   setField: (
     state: WritableDraft<TimePickerReduxState>,
     action: PayloadAction<FieldSpec | undefined>
   ) => {
     state.componentState.field = action.payload;
-  },
-  setDataViewId: (
-    state: WritableDraft<TimePickerReduxState>,
-    action: PayloadAction<string | undefined>
-  ) => {
-    state.output.dataViewId = action.payload;
   },
   setErrorMessage: (
     state: WritableDraft<TimePickerReduxState>,
@@ -43,16 +53,22 @@ export const timePickerReducers = {
   ) => {
     state.componentState.minMax = action.payload;
   },
+  setIsInvalid: (state: WritableDraft<TimePickerReduxState>, action: PayloadAction<boolean>) => {
+    state.componentState.isInvalid = action.payload;
+  },
   setLoading: (state: WritableDraft<TimePickerReduxState>, action: PayloadAction<boolean>) => {
     state.output.loading = action.payload;
+  },
+  setDataViewId: (
+    state: WritableDraft<TimePickerReduxState>,
+    action: PayloadAction<string | undefined>
+  ) => {
+    state.output.dataViewId = action.payload;
   },
   publishFilters: (
     state: WritableDraft<TimePickerReduxState>,
     action: PayloadAction<Filter[] | undefined>
   ) => {
     state.output.filters = action.payload;
-  },
-  setIsInvalid: (state: WritableDraft<TimePickerReduxState>, action: PayloadAction<boolean>) => {
-    state.componentState.isInvalid = action.payload;
   },
 };

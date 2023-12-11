@@ -8,17 +8,26 @@
 
 import { EuiDatePicker, EuiDatePickerRange } from '@elastic/eui';
 import moment, { Moment } from 'moment';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useTimePicker } from '../embeddable/time_picker_embeddable';
 
 export const TimePickerControl = () => {
   const timePicker = useTimePicker();
 
+  const selectedStartDate = timePicker.select((state) => state.explicitInput.startDate);
+  const selectedEndDate = timePicker.select((state) => state.explicitInput.endDate);
   const singleSelect = timePicker.select((state) => state.explicitInput.singleSelect);
   const minMax = timePicker.select((state) => state.componentState.minMax);
 
-  const [startDate, setStartDate] = useState<Moment | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Moment | undefined>(undefined);
+  const startDate: Moment | undefined = useMemo(() => {
+    return selectedStartDate && selectedStartDate !== minMax?.[0]
+      ? moment(selectedStartDate)
+      : undefined;
+  }, [selectedStartDate, minMax]);
+
+  const endDate: Moment | undefined = useMemo(() => {
+    return selectedEndDate && selectedEndDate !== minMax?.[1] ? moment(selectedEndDate) : undefined;
+  }, [selectedEndDate, minMax]);
 
   const [minDate, maxDate] = useMemo(() => {
     if (!minMax) return [undefined, undefined];
@@ -40,8 +49,7 @@ export const TimePickerControl = () => {
       adjustDateOnChange={false}
       onChange={(date) => {
         if (!date) return;
-        setStartDate(date);
-        setEndDate(date);
+        timePicker.dispatch.setSingleDate(date.valueOf());
       }}
     />
   ) : (
@@ -52,7 +60,10 @@ export const TimePickerControl = () => {
         <EuiDatePicker
           adjustDateOnChange={false}
           selected={startDate ?? minDate}
-          onChange={(date) => date && setStartDate(date)}
+          onChange={(date) => {
+            if (!date) return;
+            timePicker.dispatch.setStartDate(date.valueOf());
+          }}
           startDate={startDate ?? minDate}
           endDate={endDate ?? maxDate}
           minDate={minDate}
@@ -65,7 +76,10 @@ export const TimePickerControl = () => {
         <EuiDatePicker
           adjustDateOnChange={false}
           selected={endDate ?? maxDate}
-          onChange={(date) => date && setEndDate(date)}
+          onChange={(date) => {
+            if (!date) return;
+            timePicker.dispatch.setEndDate(date.valueOf());
+          }}
           startDate={startDate ?? minDate}
           endDate={endDate ?? maxDate}
           minDate={minDate}

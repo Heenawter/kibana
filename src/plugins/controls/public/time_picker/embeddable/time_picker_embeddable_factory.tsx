@@ -63,7 +63,8 @@ export class TimePickerEmbeddableFactory
         (newInput.dataViewId && !deepEqual(newInput.dataViewId, embeddable.getInput().dataViewId)))
     ) {
       // if the field name or data view id has changed in this editing session, selected values are invalid, so reset them.
-      newInput.value = ['', ''];
+      newInput.startDate = undefined;
+      newInput.endDate = undefined;
     }
 
     return newInput;
