@@ -17,6 +17,8 @@ export interface TimePickerComponentState {
   field?: FieldSpec;
   error?: string;
   isInvalid?: boolean;
+
+  minMax?: [number, number];
 }
 
 // public only - redux embeddable state type

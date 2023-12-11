@@ -37,6 +37,12 @@ export const timePickerReducers = {
   ) => {
     state.componentState.error = action.payload;
   },
+  setMinMax: (
+    state: WritableDraft<TimePickerReduxState>,
+    action: PayloadAction<[number, number] | undefined>
+  ) => {
+    state.componentState.minMax = action.payload;
+  },
   setLoading: (state: WritableDraft<TimePickerReduxState>, action: PayloadAction<boolean>) => {
     state.output.loading = action.payload;
   },

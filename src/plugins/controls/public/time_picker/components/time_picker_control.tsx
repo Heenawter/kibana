@@ -7,27 +7,37 @@
  */
 
 import { EuiDatePicker, EuiDatePickerRange } from '@elastic/eui';
-import moment from 'moment';
-import React, { useState } from 'react';
+import moment, { Moment } from 'moment';
+import React, { useMemo, useState } from 'react';
 import { useTimePicker } from '../embeddable/time_picker_embeddable';
 
 export const TimePickerControl = () => {
   const timePicker = useTimePicker();
 
-  const minDate = moment().subtract(2, 'y');
-  const maxDate = moment();
-  const [startDate, setStartDate] = useState(minDate);
-  const [endDate, setEndDate] = useState(maxDate);
-
-  const isInvalid = startDate > endDate || startDate < minDate || endDate > maxDate;
-
   const singleSelect = timePicker.select((state) => state.explicitInput.singleSelect);
+  const minMax = timePicker.select((state) => state.componentState.minMax);
+
+  const [startDate, setStartDate] = useState<Moment | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Moment | undefined>(undefined);
+
+  const [minDate, maxDate] = useMemo(() => {
+    if (!minMax) return [undefined, undefined];
+    return [moment(minMax[0]), moment(minMax[1])];
+  }, [minMax]);
+
+  const isInvalid = useMemo(() => {
+    if (!startDate || !endDate || !minDate || !maxDate) return false;
+    return startDate > endDate || startDate < minDate || endDate > maxDate;
+  }, [startDate, endDate, minDate, maxDate]);
 
   return singleSelect ? (
     <EuiDatePicker
       showTimeSelect
       showIcon={false}
-      selected={startDate}
+      selected={startDate ?? minDate}
+      minDate={minDate}
+      maxDate={maxDate}
+      adjustDateOnChange={false}
       onChange={(date) => {
         if (!date) return;
         setStartDate(date);
@@ -40,23 +50,25 @@ export const TimePickerControl = () => {
       isInvalid={isInvalid}
       startDateControl={
         <EuiDatePicker
-          selected={startDate}
+          adjustDateOnChange={false}
+          selected={startDate ?? minDate}
           onChange={(date) => date && setStartDate(date)}
-          startDate={startDate}
-          endDate={endDate}
+          startDate={startDate ?? minDate}
+          endDate={endDate ?? maxDate}
           minDate={minDate}
-          maxDate={endDate}
+          maxDate={maxDate}
           aria-label="Start date"
           showTimeSelect
         />
       }
       endDateControl={
         <EuiDatePicker
-          selected={endDate}
+          adjustDateOnChange={false}
+          selected={endDate ?? maxDate}
           onChange={(date) => date && setEndDate(date)}
-          startDate={startDate}
-          endDate={endDate}
-          minDate={startDate}
+          startDate={startDate ?? minDate}
+          endDate={endDate ?? maxDate}
+          minDate={minDate}
           maxDate={maxDate}
           aria-label="End date"
           showTimeSelect
