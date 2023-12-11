@@ -28,6 +28,8 @@ import {
   IEditableControlFactory,
   ControlInput,
 } from './types';
+import { TimePickerEmbeddableInput, TIME_PICKER_CONTROL } from '../common/time_picker/types';
+import { TimePickerEmbeddableFactory } from './time_picker/embeddable/time_picker_embeddable_factory';
 export class ControlsPlugin
   implements
     Plugin<
@@ -94,6 +96,19 @@ export class ControlsPlugin
       );
       registerControlType(rangeSliderFactory);
 
+      // register time picker
+      const timePickerFactoryDef = new TimePickerEmbeddableFactory();
+      const timePickerFactory = embeddable.registerEmbeddableFactory(
+        TIME_PICKER_CONTROL,
+        timePickerFactoryDef
+      )();
+      this.transferEditorFunctions<TimePickerEmbeddableInput>(
+        timePickerFactoryDef,
+        timePickerFactory
+      );
+      registerControlType(timePickerFactory);
+
+      // register time slider
       const timeSliderFactoryDef = new TimeSliderEmbeddableFactory();
       const timeSliderFactory = embeddable.registerEmbeddableFactory(
         TIME_SLIDER_CONTROL,

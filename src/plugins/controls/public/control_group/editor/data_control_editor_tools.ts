@@ -15,6 +15,7 @@ import { DataControlFieldRegistry, IEditableControlFactory } from '../../types';
 
 export const getDataControlFieldRegistry = memoize(
   async (dataView: DataView) => {
+    console.log('HERE!!!!');
     return await loadFieldRegistryFromDataView(dataView);
   },
   (dataView: DataView) => [dataView.id, JSON.stringify(dataView.fields.getAll())].join('|')
@@ -30,6 +31,7 @@ const loadFieldRegistryFromDataView = async (
   const controlFactories = getControlTypes().map(
     (controlType) => getControlFactory(controlType) as IEditableControlFactory
   );
+  console.log('vcontrolFactories', controlFactories);
   const fieldRegistry: DataControlFieldRegistry = {};
   return new Promise<DataControlFieldRegistry>((resolve) => {
     for (const field of dataView.fields.getAll()) {
