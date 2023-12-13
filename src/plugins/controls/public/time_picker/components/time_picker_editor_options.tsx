@@ -8,6 +8,7 @@
 
 import React, { useState } from 'react';
 
+import useMount from 'react-use/lib/useMount';
 import { EuiFormRow, EuiRadioGroup } from '@elastic/eui';
 
 import { TimePickerEmbeddableInput } from '../../../common/time_picker/types';
@@ -32,7 +33,11 @@ export const TimePickerEditorOptions = ({
   fieldType,
 }: ControlEditorProps<TimePickerEmbeddableInput>) => {
   const [state, setState] = useState({
-    singleSelect: initialInput?.singleSelect,
+    singleSelect: initialInput?.singleSelect ?? true,
+  });
+
+  useMount(() => {
+    onChange({ singleSelect: initialInput?.singleSelect ?? true });
   });
 
   return (

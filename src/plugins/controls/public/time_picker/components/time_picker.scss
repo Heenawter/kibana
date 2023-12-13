@@ -1,6 +1,6 @@
-.rangeSliderAnchor__button {
+.timePickerAnchor__buttonDual {
   .euiFormControlLayout {
-    box-shadow: none;
+    box-shadow: none !important;
     background-color: transparent;
     padding: 0 0 2px 0;
 
@@ -11,12 +11,31 @@
       border-bottom-right-radius: $euiBorderRadius - 1px;
     }
   }
+  
+  .euiDatePicker {
+    font-weight: $euiFontWeightMedium;
+    box-shadow: none;
+    text-align: center;
+    background-color: transparent;
+
+    &:invalid {
+      color: $euiTextSubduedColor;
+      text-decoration: line-through;
+      font-weight: $euiFontWeightRegular;
+      background-image: none; // hide the red bottom border
+    }
+
+    &:placeholder-shown, &::placeholder {
+      font-weight: $euiFontWeightRegular;
+      color: $euiTextSubduedColor;
+      text-decoration: none;
+    }
+  }
 }
 
-.rangeSliderAnchor__fieldNumber {
+.timePickerAnchor__buttonSingle{ 
   font-weight: $euiFontWeightMedium;
   box-shadow: none;
-  text-align: center;
   background-color: transparent;
 
   &:invalid {

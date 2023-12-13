@@ -26,19 +26,18 @@ import { ReduxEmbeddableTools, ReduxToolsPackage } from '@kbn/presentation-util-
 import { KibanaThemeProvider } from '@kbn/react-kibana-context-theme';
 
 import { i18n } from '@kbn/i18n';
+import moment from 'moment';
 import { ControlOutput } from '../..';
 import { TimePickerEmbeddableInput, TIME_PICKER_CONTROL } from '../../../common/time_picker/types';
 import { pluginServices } from '../../services';
 import { ControlsDataService } from '../../services/data/types';
 import { ControlsDataViewsService } from '../../services/data_views/types';
 import { ControlsTimePickerService } from '../../services/time_picker/types';
+import { getMomentTimezone } from '../../time_slider/time_utils';
 import { ControlInput, IClearableControl } from '../../types';
 import { TimePickerControl } from '../components/time_picker_control';
 import { getDefaultComponentState, timePickerReducers } from '../time_picker_reducers';
 import { TimePickerReduxState } from '../types';
-import { start } from 'repl';
-import { getMomentTimezone } from '../../time_slider/time_utils';
-import moment from 'moment';
 
 const diffDataFetchProps = (
   current?: TimeSliderDataFetchProps,
@@ -87,14 +86,12 @@ export class TimePickerEmbeddable
   private node?: HTMLElement;
 
   // Controls services
-  private dataService: ControlsDataService;
   private dataViewsService: ControlsDataViewsService;
   private timePickerService: ControlsTimePickerService;
 
   // Internal data fetching state for this input control.
   private dataView?: DataView;
   private field?: DataViewField;
-  private filters: Filter[] = [];
   private abortController?: AbortController;
 
   // state management
@@ -114,11 +111,8 @@ export class TimePickerEmbeddable
     super(input, output, parent); // get filters for initial output...
 
     // Destructure controls services
-    ({
-      data: this.dataService,
-      dataViews: this.dataViewsService,
-      timePicker: this.timePickerService,
-    } = pluginServices.getServices());
+    ({ dataViews: this.dataViewsService, timePicker: this.timePickerService } =
+      pluginServices.getServices());
 
     const reduxEmbeddableTools = reduxToolsPackage.createReduxEmbeddableTools<
       TimePickerReduxState,
@@ -292,7 +286,7 @@ export class TimePickerEmbeddable
     }
 
     const { min, max } = response;
-    console.log('minmax', min, max);
+
     this.dispatch.setMinMax([min, max]);
     // if( ignoreParentSettings?.ignoreValidations)
     if (min && max) {
@@ -317,12 +311,12 @@ export class TimePickerEmbeddable
     if (!dataView || !field) return;
 
     const {
-      settings: { getTimezone, getDateFormat },
+      settings: { getTimezone },
     } = pluginServices.getServices();
-    console.log('field.spec.format', field.spec);
 
-    const spec = dataView.getFormatterForField(field.spec).getConverterFor('date');
-    const params = {} as RangeFilterParams;
+    const params = {
+      time_zone: getMomentTimezone(getTimezone()),
+    } as RangeFilterParams;
     if (startDate) {
       params.gte = moment(Math.max(startDate, minMax?.[0] ?? -1))
         .startOf('day')
@@ -334,14 +328,8 @@ export class TimePickerEmbeddable
         .format('YYYY-MM-DD');
     }
 
-    console.log('start date', startDate, moment(startDate).toString());
-    console.log('end date', endDate, moment(endDate).toString());
-
-    params.time_zone = getMomentTimezone(getTimezone());
     const newFilter = buildRangeFilter(field, params, dataView);
-    console.log('newfilter', newFilter);
     if (!newFilter) return [];
-    // newFilter.query.range = decorateQuery(newFilter.query.range, {});
     newFilter.meta.key = field?.name;
     return [newFilter];
   };
