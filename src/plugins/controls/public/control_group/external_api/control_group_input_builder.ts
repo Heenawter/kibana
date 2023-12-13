@@ -20,10 +20,11 @@ import {
   DEFAULT_CONTROL_GROW,
   DEFAULT_CONTROL_WIDTH,
 } from '../../../common/control_group/control_group_constants';
-import { ControlGroupInput } from '../types';
-import { ControlInput, DataControlInput } from '../../types';
 import { RangeValue, RANGE_SLIDER_CONTROL } from '../../../common/range_slider/types';
+import { TimePickerEmbeddableInput, TIME_PICKER_CONTROL } from '../../../common/time_picker/types';
+import { ControlInput, DataControlInput } from '../../types';
 import { getCompatibleControlType, getNextPanelOrder } from '../embeddable/control_group_helpers';
+import { ControlGroupInput } from '../types';
 
 export interface AddDataControlProps {
   controlId?: string;
@@ -39,6 +40,8 @@ export type AddOptionsListControlProps = AddDataControlProps & Partial<OptionsLi
 export type AddRangeSliderControlProps = AddDataControlProps & {
   value?: RangeValue;
 };
+
+export type AddTimePickerControlProps = AddDataControlProps & Partial<TimePickerEmbeddableInput>;
 
 export type ControlGroupInputBuilder = typeof controlGroupInputBuilder;
 
@@ -124,6 +127,24 @@ export function getRangeSliderPanelState(
   const { controlId, dataViewId, fieldName, title, ...rest } = controlProps;
   return {
     type: RANGE_SLIDER_CONTROL,
+    ...getPanelState(input, controlProps),
+    explicitInput: {
+      id: controlId ? controlId : uuidv4(),
+      dataViewId,
+      fieldName,
+      title: title ?? fieldName,
+      ...rest,
+    },
+  } as ControlPanelState<DataControlInput>;
+}
+
+export function getTimePickerPanelState(
+  input: Partial<ControlGroupInput>,
+  controlProps: AddTimePickerControlProps
+) {
+  const { controlId, dataViewId, fieldName, title, ...rest } = controlProps;
+  return {
+    type: TIME_PICKER_CONTROL,
     ...getPanelState(input, controlProps),
     explicitInput: {
       id: controlId ? controlId : uuidv4(),

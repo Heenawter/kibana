@@ -37,6 +37,8 @@ import { TimePickerControl } from '../components/time_picker_control';
 import { getDefaultComponentState, timePickerReducers } from '../time_picker_reducers';
 import { TimePickerReduxState } from '../types';
 import { start } from 'repl';
+import { getMomentTimezone } from '../../time_slider/time_utils';
+import moment from 'moment';
 
 const diffDataFetchProps = (
   current?: TimeSliderDataFetchProps,
@@ -260,6 +262,7 @@ export class TimePickerEmbeddable
     } = this.getInput();
     if (this.abortController) this.abortController.abort();
     this.abortController = new AbortController();
+
     const timeRange =
       timeslice !== undefined
         ? {
@@ -291,7 +294,7 @@ export class TimePickerEmbeddable
     const { min, max } = response;
     console.log('minmax', min, max);
     this.dispatch.setMinMax([min, max]);
-
+    // if( ignoreParentSettings?.ignoreValidations)
     if (min && max) {
       // publish filter
       const newFilters = await this.buildFilter();
@@ -313,17 +316,32 @@ export class TimePickerEmbeddable
     const { dataView, field } = await this.getCurrentDataViewAndField();
     if (!dataView || !field) return;
 
+    const {
+      settings: { getTimezone, getDateFormat },
+    } = pluginServices.getServices();
+    console.log('field.spec.format', field.spec);
+
+    const spec = dataView.getFormatterForField(field.spec).getConverterFor('date');
     const params = {} as RangeFilterParams;
     if (startDate) {
-      params.gte = Math.max(startDate, minMax?.[0] ?? -1);
+      params.gte = moment(Math.max(startDate, minMax?.[0] ?? -1))
+        .startOf('day')
+        .format('YYYY-MM-DD');
     }
     if (endDate) {
-      params.lte = Math.min(endDate, minMax?.[1] ?? Infinity);
+      params.lte = moment(Math.min(endDate, minMax?.[1] ?? Infinity))
+        .endOf('day')
+        .format('YYYY-MM-DD');
     }
+
+    console.log('start date', startDate, moment(startDate).toString());
+    console.log('end date', endDate, moment(endDate).toString());
+
+    params.time_zone = getMomentTimezone(getTimezone());
     const newFilter = buildRangeFilter(field, params, dataView);
-
+    console.log('newfilter', newFilter);
     if (!newFilter) return [];
-
+    // newFilter.query.range = decorateQuery(newFilter.query.range, {});
     newFilter.meta.key = field?.name;
     return [newFilter];
   };

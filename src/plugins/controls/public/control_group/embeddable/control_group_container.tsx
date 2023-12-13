@@ -24,9 +24,11 @@ import { ControlGroup } from '../component/control_group_component';
 import { openAddDataControlFlyout } from '../editor/open_add_data_control_flyout';
 import { openEditControlGroupFlyout } from '../editor/open_edit_control_group_flyout';
 import {
+  AddTimePickerControlProps,
   getDataControlPanelState,
   getOptionsListPanelState,
   getRangeSliderPanelState,
+  getTimePickerPanelState,
   getTimeSliderPanelState,
   type AddDataControlProps,
   type AddOptionsListControlProps,
@@ -232,6 +234,11 @@ export class ControlGroupContainer extends Container<
 
   public addRangeSliderControl(controlProps: AddRangeSliderControlProps) {
     const panelState = getRangeSliderPanelState(this.getInput(), controlProps);
+    return this.createAndSaveEmbeddable(panelState.type, panelState, this.getInput().panels);
+  }
+
+  public addTimePickerControl(controlProps: AddTimePickerControlProps) {
+    const panelState = getTimePickerPanelState(this.getInput(), controlProps);
     return this.createAndSaveEmbeddable(panelState.type, panelState, this.getInput().panels);
   }
 

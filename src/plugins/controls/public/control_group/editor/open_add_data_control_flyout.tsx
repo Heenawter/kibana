@@ -17,6 +17,7 @@ import {
   DEFAULT_CONTROL_GROW,
   DEFAULT_CONTROL_WIDTH,
 } from '../../../common/control_group/control_group_constants';
+import { TIME_PICKER_CONTROL } from '../../../common/time_picker/types';
 import { ControlInputTransform } from '../../../common/types';
 import { pluginServices } from '../../services';
 import { DataControlEditorChanges, IEditableControlFactory } from '../../types';
@@ -30,6 +31,7 @@ import type {
   AddDataControlProps,
   AddOptionsListControlProps,
   AddRangeSliderControlProps,
+  AddTimePickerControlProps,
 } from '../external_api/control_group_input_builder';
 import { ControlEditor } from './control_editor';
 
@@ -97,6 +99,9 @@ export function openAddDataControlFlyout(
         newControl = await this.addRangeSliderControl(
           dataControlInput as AddRangeSliderControlProps
         );
+        break;
+      case TIME_PICKER_CONTROL:
+        newControl = await this.addTimePickerControl(dataControlInput as AddTimePickerControlProps);
         break;
       default:
         newControl = await this.addDataControlFromField(dataControlInput as AddDataControlProps);

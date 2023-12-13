@@ -47,6 +47,7 @@ export interface RangeFilterParams extends SerializableRecord {
   gte?: number | string;
   lte?: number | string;
   format?: string;
+  time_zone?: string;
 }
 
 export const hasRangeKeys = (params: RangeFilterParams) =>

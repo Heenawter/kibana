@@ -7,12 +7,18 @@
  */
 
 import { EuiDatePicker, EuiDatePickerRange } from '@elastic/eui';
-import moment, { Moment } from 'moment';
+import moment, { Moment } from 'moment-timezone';
 import React, { useMemo } from 'react';
+import { pluginServices } from '../../services';
+import { getMomentTimezone } from '../../time_slider/time_utils';
 import { useTimePicker } from '../embeddable/time_picker_embeddable';
 
 export const TimePickerControl = () => {
   const timePicker = useTimePicker();
+
+  const {
+    settings: { getTimezone },
+  } = pluginServices.getServices();
 
   const selectedStartDate = timePicker.select((state) => state.explicitInput.startDate);
   const selectedEndDate = timePicker.select((state) => state.explicitInput.endDate);
@@ -31,17 +37,23 @@ export const TimePickerControl = () => {
 
   const [minDate, maxDate] = useMemo(() => {
     if (!minMax) return [undefined, undefined];
-    return [moment(minMax[0]), moment(minMax[1])];
-  }, [minMax]);
+
+    return [
+      moment.tz(minMax[0], getMomentTimezone(getTimezone())),
+      moment.tz(minMax[1], getMomentTimezone(getTimezone())),
+    ];
+  }, [minMax, getTimezone]);
 
   const isInvalid = useMemo(() => {
     if (!startDate || !endDate || !minDate || !maxDate) return false;
-    return startDate > endDate || startDate < minDate || endDate > maxDate;
+    return (
+      startDate > endDate || startDate < minDate.startOf('day') || endDate > maxDate.endOf('day')
+    );
   }, [startDate, endDate, minDate, maxDate]);
 
   return singleSelect ? (
     <EuiDatePicker
-      showTimeSelect
+      showTimeSelect={false}
       showIcon={false}
       selected={startDate ?? minDate}
       minDate={minDate}
@@ -50,6 +62,8 @@ export const TimePickerControl = () => {
       onChange={(date) => {
         if (!date) return;
         timePicker.dispatch.setSingleDate(date.valueOf());
+        // timePicker.dispatch.setStartDate(date.startOf('day').valueOf());
+        // timePicker.dispatch.setEndDate(date.endOf('day').valueOf());
       }}
     />
   ) : (
@@ -62,14 +76,14 @@ export const TimePickerControl = () => {
           selected={startDate ?? minDate}
           onChange={(date) => {
             if (!date) return;
-            timePicker.dispatch.setStartDate(date.valueOf());
+            timePicker.dispatch.setStartDate(date.startOf('day').valueOf());
           }}
           startDate={startDate ?? minDate}
           endDate={endDate ?? maxDate}
           minDate={minDate}
           maxDate={maxDate}
           aria-label="Start date"
-          showTimeSelect
+          showTimeSelect={false}
         />
       }
       endDateControl={
@@ -78,14 +92,14 @@ export const TimePickerControl = () => {
           selected={endDate ?? maxDate}
           onChange={(date) => {
             if (!date) return;
-            timePicker.dispatch.setEndDate(date.valueOf());
+            timePicker.dispatch.setEndDate(date.endOf('day').valueOf());
           }}
           startDate={startDate ?? minDate}
           endDate={endDate ?? maxDate}
           minDate={minDate}
           maxDate={maxDate}
           aria-label="End date"
-          showTimeSelect
+          showTimeSelect={false}
         />
       }
     />
