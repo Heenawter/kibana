@@ -19,7 +19,10 @@ export const getDefaultComponentState = (): TimePickerReduxState['componentState
 });
 
 export const timePickerReducers = {
-  setSingleDate: (state: WritableDraft<TimePickerReduxState>, action: PayloadAction<number>) => {
+  setSingleDate: (
+    state: WritableDraft<TimePickerReduxState>,
+    action: PayloadAction<number | undefined>
+  ) => {
     state.explicitInput.startDate = action.payload;
     state.explicitInput.endDate = action.payload;
   },

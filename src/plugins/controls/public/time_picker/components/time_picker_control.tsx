@@ -6,32 +6,14 @@
  * Side Public License, v 1.
  */
 
-import { EuiDatePicker, EuiDatePickerRange, EuiFormControlLayoutDelimited } from '@elastic/eui';
+import { EuiDatePicker, EuiDatePickerRange } from '@elastic/eui';
 import moment, { Moment } from 'moment-timezone';
-import React, { forwardRef, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { pluginServices } from '../../services';
 import { getMomentTimezone } from '../../time_slider/time_utils';
 import { useTimePicker } from '../embeddable/time_picker_embeddable';
 
 import './time_picker.scss';
-
-const ExampleCustomInput = forwardRef(({ onClick, min, max }, ref) => {
-  return (
-    // <EuiButton className="example-custom-input" onClick={onClick}>
-    //   {min?.format('MM/DD/YYYY')} {'->'} {max?.format('MM/DD/YYYY')}
-    // </EuiButton>
-    <EuiFormControlLayoutDelimited
-      onClick={onClick}
-      startControl={
-        <input type={'text'} placeholder={min?.format('MM/DD/YYYY')} className="euiFieldNumber" />
-      }
-      endControl={
-        <input type={'text'} placeholder={max?.format('MM/DD/YYYY')} className="euiFieldNumber" />
-      }
-      fullWidth
-    />
-  );
-});
 
 export const TimePickerControl = () => {
   const timePicker = useTimePicker();
@@ -84,15 +66,19 @@ export const TimePickerControl = () => {
       isLoading={loading}
       showTimeSelect={false}
       showIcon={false}
+      popoverPlacement={'downCenter'}
       selected={startDate}
       minDate={minDate}
       maxDate={maxDate}
+      allowSameDay={true}
       adjustDateOnChange={false}
       onChange={(date) => {
         if (!date) return;
-        timePicker.dispatch.setSingleDate(date.valueOf());
-        // timePicker.dispatch.setStartDate(date.startOf('day').valueOf());
-        // timePicker.dispatch.setEndDate(date.endOf('day').valueOf());
+        if (date.isSame(startDate)) {
+          timePicker.dispatch.setSingleDate(undefined);
+        } else {
+          timePicker.dispatch.setSingleDate(date.valueOf());
+        }
       }}
     />
   ) : (
@@ -104,12 +90,17 @@ export const TimePickerControl = () => {
       isInvalid={isInvalid}
       startDateControl={
         <EuiDatePicker
+          allowSameDay={true}
           placeholder={minDate?.format('MM/DD/YYYY')}
           adjustDateOnChange={false}
-          selected={startDate}
+          selected={startDate === minDate ? undefined : startDate}
           onChange={(date) => {
             if (!date) return;
-            timePicker.dispatch.setStartDate(date.startOf('day').valueOf());
+            if (date.isSame(startDate)) {
+              timePicker.dispatch.setStartDate(undefined);
+            } else {
+              timePicker.dispatch.setStartDate(date.startOf('day').valueOf());
+            }
           }}
           startDate={startDate ?? minDate}
           endDate={endDate ?? maxDate}
@@ -121,12 +112,17 @@ export const TimePickerControl = () => {
       }
       endDateControl={
         <EuiDatePicker
+          allowSameDay={true}
           placeholder={maxDate?.format('MM/DD/YYYY')}
           adjustDateOnChange={false}
-          selected={endDate}
+          selected={endDate === maxDate ? undefined : endDate}
           onChange={(date) => {
             if (!date) return;
-            timePicker.dispatch.setEndDate(date.endOf('day').valueOf());
+            if (date.isSame(endDate)) {
+              timePicker.dispatch.setEndDate(undefined);
+            } else {
+              timePicker.dispatch.setEndDate(date.endOf('day').valueOf());
+            }
           }}
           startDate={startDate ?? minDate}
           endDate={endDate ?? maxDate}
