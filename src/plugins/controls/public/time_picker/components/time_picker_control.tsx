@@ -27,6 +27,7 @@ export const TimePickerControl = () => {
   const singleSelect = timePicker.select((state) => state.explicitInput.singleSelect);
   const loading = timePicker.select((state) => state.output.loading);
   const minMax = timePicker.select((state) => state.componentState.minMax);
+  const isInvalid = timePicker.select((state) => state.componentState.isInvalid);
 
   const startDate: Moment | undefined = useMemo(() => {
     return selectedStartDate && selectedStartDate !== minMax?.[0]
@@ -42,24 +43,14 @@ export const TimePickerControl = () => {
     if (!minMax) return [undefined, undefined];
 
     return [
-      moment.tz(minMax[0], getMomentTimezone(getTimezone())),
-      moment.tz(minMax[1], getMomentTimezone(getTimezone())),
+      moment.tz(minMax[0], getMomentTimezone(getTimezone())).startOf('day'),
+      moment.tz(minMax[1], getMomentTimezone(getTimezone())).endOf('day'),
     ];
   }, [minMax, getTimezone]);
-
-  const isInvalid = useMemo(() => {
-    if (!startDate || !endDate || !minDate || !maxDate) return false;
-    return (
-      startDate > endDate || startDate < minDate.startOf('day') || endDate > maxDate.endOf('day')
-    );
-  }, [startDate, endDate, minDate, maxDate]);
 
   return singleSelect ? (
     <EuiDatePicker
       fullWidth
-      // customInput={
-      //   selectedStartDate ? undefined : <ExampleCustomInput min={minDate} max={maxDate} />
-      // }
       className="timePickerAnchor__buttonSingle"
       placeholder={'Any'}
       shadow={false}
@@ -71,6 +62,7 @@ export const TimePickerControl = () => {
       minDate={minDate}
       maxDate={maxDate}
       allowSameDay={true}
+      isInvalid={isInvalid}
       adjustDateOnChange={false}
       onChange={(date) => {
         if (!date) return;
@@ -91,12 +83,12 @@ export const TimePickerControl = () => {
       startDateControl={
         <EuiDatePicker
           allowSameDay={true}
-          placeholder={minDate?.format('MM/DD/YYYY')}
+          placeholder={minDate?.format('MM/DD/YYYY') ?? 'Any'}
           adjustDateOnChange={false}
           selected={startDate === minDate ? undefined : startDate}
           onChange={(date) => {
             if (!date) return;
-            if (date.isSame(startDate)) {
+            if (date.isSame(startDate) || date.isSame(minDate)) {
               timePicker.dispatch.setStartDate(undefined);
             } else {
               timePicker.dispatch.setStartDate(date.startOf('day').valueOf());
@@ -113,12 +105,12 @@ export const TimePickerControl = () => {
       endDateControl={
         <EuiDatePicker
           allowSameDay={true}
-          placeholder={maxDate?.format('MM/DD/YYYY')}
+          placeholder={maxDate?.format('MM/DD/YYYY') ?? 'Any'}
           adjustDateOnChange={false}
           selected={endDate === maxDate ? undefined : endDate}
           onChange={(date) => {
             if (!date) return;
-            if (date.isSame(endDate)) {
+            if (date.isSame(endDate) || date.isSame(maxDate)) {
               timePicker.dispatch.setEndDate(undefined);
             } else {
               timePicker.dispatch.setEndDate(date.endOf('day').valueOf());

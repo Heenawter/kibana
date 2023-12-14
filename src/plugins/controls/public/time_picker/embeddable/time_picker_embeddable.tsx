@@ -10,7 +10,7 @@ import deepEqual from 'fast-deep-equal';
 import React, { createContext, useContext } from 'react';
 import ReactDOM from 'react-dom';
 import { batch } from 'react-redux';
-import { Subscription, switchMap } from 'rxjs';
+import { lastValueFrom, Subscription, switchMap, tap } from 'rxjs';
 import { distinctUntilChanged, map, skip } from 'rxjs/operators';
 
 import { DataView, DataViewField } from '@kbn/data-views-plugin/public';
@@ -19,7 +19,6 @@ import {
   buildRangeFilter,
   compareFilters,
   COMPARE_ALL_OPTIONS,
-  Filter,
   RangeFilterParams,
 } from '@kbn/es-query';
 import { ReduxEmbeddableTools, ReduxToolsPackage } from '@kbn/presentation-util-plugin/public';
@@ -86,6 +85,7 @@ export class TimePickerEmbeddable
   private node?: HTMLElement;
 
   // Controls services
+  private dataService: ControlsDataService;
   private dataViewsService: ControlsDataViewsService;
   private timePickerService: ControlsTimePickerService;
 
@@ -111,8 +111,11 @@ export class TimePickerEmbeddable
     super(input, output, parent); // get filters for initial output...
 
     // Destructure controls services
-    ({ dataViews: this.dataViewsService, timePicker: this.timePickerService } =
-      pluginServices.getServices());
+    ({
+      data: this.dataService,
+      dataViews: this.dataViewsService,
+      timePicker: this.timePickerService,
+    } = pluginServices.getServices());
 
     const reduxEmbeddableTools = reduxToolsPackage.createReduxEmbeddableTools<
       TimePickerReduxState,
@@ -247,13 +250,7 @@ export class TimePickerEmbeddable
     if (!dataView || !field) return;
 
     this.dispatch.setLoading(true);
-    const {
-      // ignoreParentSettings,
-      filters,
-      query,
-      timeRange: globalTimeRange,
-      timeslice,
-    } = this.getInput();
+    const { filters, query, timeRange: globalTimeRange, timeslice } = this.getInput();
     if (this.abortController) this.abortController.abort();
     this.abortController = new AbortController();
 
@@ -285,24 +282,52 @@ export class TimePickerEmbeddable
       return;
     }
 
+    const {
+      explicitInput: { startDate, endDate },
+    } = this.getState();
+
+    if (!startDate && !endDate) {
+      batch(() => {
+        this.dispatch.setLoading(false);
+        this.dispatch.setIsInvalid(false);
+        this.dispatch.setMinMax(undefined);
+        this.dispatch.publishFilters([]);
+        this.dispatch.setErrorMessage(undefined);
+      });
+      return;
+    }
+
     const { min, max } = response;
 
-    this.dispatch.setMinMax([min, max]);
-    // if( ignoreParentSettings?.ignoreValidations)
-    if (min && max) {
-      // publish filter
-      const newFilters = await this.buildFilter();
+    const newFilters = await this.buildFilter({ min, max });
+    if ((newFilters ?? []).length === 0) {
       batch(() => {
-        this.dispatch.setErrorMessage(undefined);
         this.dispatch.setLoading(false);
+        if (!newFilters) {
+          this.dispatch.setIsInvalid(true);
+        } else {
+          this.dispatch.setIsInvalid(false);
+        }
+        this.dispatch.setDataViewId(dataView.id);
+        this.dispatch.setMinMax([min, max]);
+        this.dispatch.publishFilters([]);
+        this.dispatch.setErrorMessage(undefined);
+      });
+    } else {
+      batch(() => {
+        this.dispatch.setLoading(false);
+        this.dispatch.setIsInvalid(false);
+        this.dispatch.setMinMax([min, max]);
         this.dispatch.publishFilters(newFilters);
+        this.dispatch.setErrorMessage(undefined);
       });
     }
   };
 
-  private buildFilter = async () => {
-    const { startDate, endDate } = this.getState().explicitInput;
-    const { minMax } = this.getState().componentState;
+  private buildFilter = async ({ min, max }: { min: number; max: number }) => {
+    const {
+      explicitInput: { startDate, endDate },
+    } = this.getState();
 
     if (!startDate && !endDate) {
       return [];
@@ -318,19 +343,39 @@ export class TimePickerEmbeddable
       time_zone: getMomentTimezone(getTimezone()),
     } as RangeFilterParams;
     if (startDate) {
-      params.gte = moment(Math.max(startDate, minMax?.[0] ?? -1))
-        .startOf('day')
-        .format('YYYY-MM-DD');
+      params.gte = moment(Math.max(startDate, min)).startOf('day').format('YYYY-MM-DD');
     }
     if (endDate) {
-      params.lte = moment(Math.min(endDate, minMax?.[1] ?? Infinity))
-        .endOf('day')
-        .format('YYYY-MM-DD');
+      params.lte = moment(Math.min(endDate, max)).endOf('day').format('YYYY-MM-DD');
     }
 
     const newFilter = buildRangeFilter(field, params, dataView);
     if (!newFilter) return [];
     newFilter.meta.key = field?.name;
+
+    const { ignoreParentSettings, query } = this.getInput();
+
+    // Check if new range filter results in no data
+    if (!ignoreParentSettings?.ignoreValidations) {
+      const searchSource = await this.dataService.searchSource.create();
+
+      const filters = [newFilter];
+
+      searchSource.setField('size', 0);
+      searchSource.setField('index', dataView);
+      searchSource.setField('filter', filters);
+      if (query) {
+        searchSource.setField('query', query);
+      }
+
+      const resp = await lastValueFrom(searchSource.fetch$());
+      const total = resp?.rawResponse?.hits?.total;
+      const docCount = typeof total === 'number' ? total : total?.value;
+      if (!docCount) {
+        return undefined;
+      }
+    }
+
     return [newFilter];
   };
 
