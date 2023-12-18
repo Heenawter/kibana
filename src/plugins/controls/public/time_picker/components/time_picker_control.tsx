@@ -77,11 +77,12 @@ export const TimePickerControl = () => {
     <EuiDatePickerRange
       iconType={false}
       fullWidth
+      isInvalid={false}
       isLoading={loading}
       className="timePickerAnchor__buttonDual"
-      isInvalid={isInvalid}
       startDateControl={
         <EuiDatePicker
+          isInvalid={isInvalid || (startDate && minDate && startDate < minDate)}
           allowSameDay={true}
           placeholder={minDate?.format('MM/DD/YYYY') ?? 'Any'}
           adjustDateOnChange={false}
@@ -105,6 +106,7 @@ export const TimePickerControl = () => {
       endDateControl={
         <EuiDatePicker
           allowSameDay={true}
+          isInvalid={isInvalid || (endDate && maxDate && endDate > maxDate)}
           placeholder={maxDate?.format('MM/DD/YYYY') ?? 'Any'}
           adjustDateOnChange={false}
           selected={endDate === maxDate ? undefined : endDate}

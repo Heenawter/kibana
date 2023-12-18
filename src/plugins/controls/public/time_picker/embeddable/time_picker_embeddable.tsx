@@ -286,17 +286,6 @@ export class TimePickerEmbeddable
       explicitInput: { startDate, endDate },
     } = this.getState();
 
-    if (!startDate && !endDate) {
-      batch(() => {
-        this.dispatch.setLoading(false);
-        this.dispatch.setIsInvalid(false);
-        this.dispatch.setMinMax(undefined);
-        this.dispatch.publishFilters([]);
-        this.dispatch.setErrorMessage(undefined);
-      });
-      return;
-    }
-
     const { min, max } = response;
 
     const newFilters = await this.buildFilter({ min, max });
@@ -330,6 +319,7 @@ export class TimePickerEmbeddable
     } = this.getState();
 
     if (!startDate && !endDate) {
+      console.log('hereeee');
       return [];
     }
     const { dataView, field } = await this.getCurrentDataViewAndField();

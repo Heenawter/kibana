@@ -7,6 +7,7 @@
  */
 
 import { i18n } from '@kbn/i18n';
+import { TIME_PICKER_CONTROL } from '../../common/time_picker/types';
 import { RANGE_SLIDER_CONTROL } from '../range_slider';
 
 export const ControlGroupStrings = {
@@ -69,7 +70,15 @@ export const ControlGroupStrings = {
             return i18n.translate(
               'controls.controlGroup.manageControl.dataSource.controlTypeErrorMessage.rangeSlider',
               {
-                defaultMessage: 'Range sliders are only compatible with number fields.',
+                defaultMessage: 'Range slider controls are only compatible with number fields.',
+              }
+            );
+          }
+          case TIME_PICKER_CONTROL: {
+            return i18n.translate(
+              'controls.controlGroup.manageControl.dataSource.controlTypeErrorMessage.timePicker',
+              {
+                defaultMessage: 'Date picker controls are only compatible with date fields.',
               }
             );
           }
