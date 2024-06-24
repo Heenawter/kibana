@@ -1,0 +1,38 @@
+
+.savedSearchFlyout {  
+  .euiFlyoutBody {
+    >* {
+      pointer-events: auto;
+    }
+
+    .editorPanel {
+      overflow: auto;
+      max-height: 500px;
+    }
+  }
+
+  .unifiedFieldListSidebar__list {
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+  
+    >* {
+      padding-left: 0px !important;
+      padding-right: 0px !important;
+    }
+  
+    .unifiedFieldList__fieldListGrouped {
+      margin-left: -8px !important;
+    }
+  
+    .unifiedFieldList__fieldListGrouped__container {
+      padding-top: $euiSizeS;
+      left: 0;
+      right: 0;
+      position: relative !important;
+    }
+  }
+
+  .euiFlyoutFooter {
+    border-top: $euiBorderThin;
+  }
+}

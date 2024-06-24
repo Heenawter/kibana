@@ -163,6 +163,9 @@ export class DashboardContainer
   private domNode?: HTMLElement;
   private overlayRef?: OverlayRef;
   private allDataViews: DataView[] = [];
+  public dataViews: BehaviorSubject<DataView[] | undefined> = new BehaviorSubject<
+    DataView[] | undefined
+  >(undefined);
 
   // performance monitoring
   public lastLoadStartTime?: number;
@@ -712,6 +715,7 @@ export class DashboardContainer
   public setAllDataViews = (newDataViews: DataView[]) => {
     this.allDataViews = newDataViews;
     this.onDataViewsUpdate$.next(newDataViews);
+    this.dataViews.next(newDataViews);
   };
 
   public getExpandedPanelId = () => {

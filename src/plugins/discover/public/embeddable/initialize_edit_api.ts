@@ -7,28 +7,16 @@
  */
 
 import { i18n } from '@kbn/i18n';
-import {
-  apiHasAppContext,
-  FetchContext,
-  PublishesDataViews,
-  PublishesSavedObjectId,
-  PublishingSubject,
-} from '@kbn/presentation-publishing';
+import { apiHasAppContext, FetchContext, PublishingSubject } from '@kbn/presentation-publishing';
 import { DiscoverServices } from '../build_services';
-import { PublishesSavedSearch } from './types';
+import { openSavedSearchEditFlyout } from './components/editor/open_saved_search_edit_flyout';
+import { SearchEmbeddableApi, SearchEmbeddableStateManager } from './types';
 import { getDiscoverLocatorParams } from './utils/get_discover_locator_params';
 
-type SavedSearchPartialApi = PublishesSavedSearch &
-  PublishesSavedObjectId &
-  PublishesDataViews & { fetchContext$: PublishingSubject<FetchContext | undefined> };
-
-export async function getAppTarget(
-  partialApi: SavedSearchPartialApi,
-  discoverServices: DiscoverServices
-) {
-  const savedObjectId = partialApi.savedObjectId.getValue();
-  const dataViews = partialApi.dataViews.getValue();
-  const locatorParams = getDiscoverLocatorParams(partialApi);
+export async function getAppTarget(api: SearchEmbeddableApi, discoverServices: DiscoverServices) {
+  const savedObjectId = api.savedObjectId.getValue();
+  const dataViews = api.dataViews.getValue();
+  const locatorParams = getDiscoverLocatorParams(api);
 
   // We need to use a redirect URL if this is a by value saved search using
   // an ad hoc data view to ensure the data view spec gets encoded in the URL
@@ -45,26 +33,44 @@ export async function getAppTarget(
 export function initializeEditApi({
   uuid,
   parentApi,
-  partialApi,
+  getApi,
   isEditable,
+  stateManager,
   discoverServices,
 }: {
   uuid: string;
   parentApi?: unknown;
-  partialApi: PublishesSavedSearch &
-    PublishesSavedObjectId &
-    PublishesDataViews & { fetchContext$: PublishingSubject<FetchContext | undefined> };
+  getApi: () => SearchEmbeddableApi & {
+    fetchContext$: PublishingSubject<FetchContext | undefined>;
+  };
   isEditable: () => boolean;
+  stateManager: SearchEmbeddableStateManager;
   discoverServices: DiscoverServices;
 }) {
   /**
    * If the parent is providing context, then the embeddable state transfer service can be used
    * and editing should be allowed; otherwise, do not provide editing capabilities
    */
-  if (!parentApi || !apiHasAppContext(parentApi)) {
+  if (!isEditable || !parentApi || !apiHasAppContext(parentApi)) {
     return {};
   }
   const parentApiContext = parentApi.getAppContext();
+
+  const navigateToEditor = async () => {
+    const api = getApi();
+    const stateTransfer = discoverServices.embeddable.getStateTransfer();
+    const appTarget = await getAppTarget(api, discoverServices);
+    await stateTransfer.navigateToEditor(appTarget.app, {
+      path: appTarget.path,
+      state: {
+        embeddableId: uuid,
+        valueInput: api.savedSearch$.getValue(),
+        originatingApp: parentApiContext.currentAppId,
+        searchSessionId: api.fetchContext$.getValue()?.searchSessionId,
+        originatingPath: parentApiContext.getCurrentPath?.(),
+      },
+    });
+  };
 
   return {
     getTypeDisplayName: () =>
@@ -72,22 +78,31 @@ export function initializeEditApi({
         defaultMessage: 'search',
       }),
     onEdit: async () => {
-      const stateTransfer = discoverServices.embeddable.getStateTransfer();
-      const appTarget = await getAppTarget(partialApi, discoverServices);
-      await stateTransfer.navigateToEditor(appTarget.app, {
-        path: appTarget.path,
-        state: {
-          embeddableId: uuid,
-          valueInput: partialApi.savedSearch$.getValue(),
-          originatingApp: parentApiContext.currentAppId,
-          searchSessionId: partialApi.fetchContext$.getValue()?.searchSessionId,
-          originatingPath: parentApiContext.getCurrentPath?.(),
-        },
+      const api = getApi();
+      await openSavedSearchEditFlyout({
+        api,
+        id: uuid,
+        stateManager,
+        isEditing: true,
+        navigateToEditor,
+        services: discoverServices,
       });
+      // const stateTransfer = discoverServices.embeddable.getStateTransfer();
+      // const appTarget = await getAppTarget(partialApi, discoverServices);
+      // await stateTransfer.navigateToEditor(appTarget.app, {
+      //   path: appTarget.path,
+      //   state: {
+      //     embeddableId: uuid,
+      //     valueInput: partialApi.savedSearch$.getValue(),
+      //     originatingApp: parentApiContext.currentAppId,
+      //     searchSessionId: partialApi.fetchContext$.getValue()?.searchSessionId,
+      //     originatingPath: parentApiContext.getCurrentPath?.(),
+      //   },
+      // });
     },
     isEditingEnabled: isEditable,
     getEditHref: async () => {
-      return (await getAppTarget(partialApi, discoverServices))?.path;
+      return (await getAppTarget(getApi(), discoverServices))?.path;
     },
   };
 }

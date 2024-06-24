@@ -114,6 +114,8 @@ export const initializeSearchEmbeddableApi = async (
     sort: sort$,
     totalHitCount: totalHitCount$,
     viewMode: savedSearchViewMode$,
+    dataViews,
+    dataViewId: new BehaviorSubject<string | undefined>(dataView?.id),
   };
 
   /** The saved search should be the source of truth for all state  */

@@ -115,9 +115,10 @@ export const getSearchEmbeddableFactory = ({
           ...initializeEditApi({
             uuid,
             parentApi,
-            partialApi: { ...searchEmbeddable.api, fetchContext$, savedObjectId: savedObjectId$ },
             discoverServices,
             isEditable: startServices.isEditable,
+            stateManager: searchEmbeddable.stateManager,
+            getApi: () => ({ ...api, fetchContext$ }),
           }),
           dataLoading: dataLoading$,
           blockingError: blockingError$,

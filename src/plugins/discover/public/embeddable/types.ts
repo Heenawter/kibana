@@ -6,6 +6,7 @@
  * Side Public License, v 1.
  */
 
+import { DataView } from '@kbn/data-views-plugin/common';
 import { DataTableRecord } from '@kbn/discover-utils/types';
 import type { DefaultEmbeddableApi } from '@kbn/embeddable-plugin/public';
 import {
@@ -47,6 +48,9 @@ export type SearchEmbeddableState = Pick<
 
 export type SearchEmbeddableStateManager = {
   [key in keyof Required<SearchEmbeddableState>]: BehaviorSubject<SearchEmbeddableState[key]>;
+} & {
+  dataViews: BehaviorSubject<DataView[] | undefined>;
+  dataViewId: BehaviorSubject<string | undefined>;
 };
 
 export type SearchEmbeddableSerializedAttributes = Omit<
