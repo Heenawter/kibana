@@ -8,20 +8,31 @@
 
 import { pick } from 'lodash';
 import deepEqual from 'react-fast-compare';
-import { BehaviorSubject, combineLatest, map, Observable, skip } from 'rxjs';
+import {
+  BehaviorSubject,
+  combineLatest,
+  debounceTime,
+  distinctUntilChanged,
+  Observable,
+  skip,
+  switchMap,
+} from 'rxjs';
 
 import { ISearchSource, SerializedSearchSourceFields } from '@kbn/data-plugin/common';
 import { DataView } from '@kbn/data-views-plugin/common';
 import { ROW_HEIGHT_OPTION, SAMPLE_SIZE_SETTING } from '@kbn/discover-utils';
 import { DataTableRecord } from '@kbn/discover-utils/types';
+import { AggregateQuery } from '@kbn/es-query';
 import type { PublishesDataViews, StateComparators } from '@kbn/presentation-publishing';
 import { SavedSearch } from '@kbn/saved-search-plugin/common';
 import { SortOrder, VIEW_MODE } from '@kbn/saved-search-plugin/public';
 import { DataTableColumnsMeta } from '@kbn/unified-data-table';
 
 import { getDefaultRowsPerPage } from '../../common/constants';
+import { getEsqlDataView } from '../application/main/state_management/utils/get_esql_data_view';
 import { DiscoverServices } from '../build_services';
 import { DEFAULT_HEADER_ROW_HEIGHT_LINES, EDITABLE_SAVED_SEARCH_KEYS } from './constants';
+import { isEsqlMode } from './initialize_fetch';
 import {
   PublishesSavedSearch,
   SearchEmbeddableRuntimeState,
@@ -102,6 +113,7 @@ export const initializeSearchEmbeddableApi = async (
    * The state manager is used to modify the state of the saved search - this should never be
    * treated as the source of truth
    */
+  const dataView$ = new BehaviorSubject<DataView | undefined>(dataView);
   const stateManager: SearchEmbeddableStateManager = {
     breakdownField: breakdownField$,
     columns: columns$,
@@ -114,8 +126,8 @@ export const initializeSearchEmbeddableApi = async (
     sort: sort$,
     totalHitCount: totalHitCount$,
     viewMode: savedSearchViewMode$,
-    dataViews,
-    dataViewId: new BehaviorSubject<string | undefined>(dataView?.id),
+    searchSource: searchSource$,
+    dataView: dataView$,
   };
 
   /** The saved search should be the source of truth for all state  */
@@ -129,22 +141,51 @@ export const initializeSearchEmbeddableApi = async (
   /** Keep the saved search in sync with any state changes */
   const syncSavedSearch = combineLatest([onAnyStateChange, searchSource$])
     .pipe(
-      skip(1),
-      map(
-        ([newState, newSearchSource]) =>
-          ({
+      debounceTime(1), // combines when both onAnyStateChange and searchSource fire at the same time
+      switchMap(
+        async ([newState, newSearchSource]): Promise<{
+          savedSearch: SavedSearch;
+          dataView?: DataView;
+        }> => {
+          const newSavedSearch: SavedSearch = {
             ...newState,
             searchSource: newSearchSource,
-          } as SavedSearch)
-      )
+          } as SavedSearch;
+          if (isEsqlMode(newSavedSearch)) {
+            const currentDataView = newSearchSource.getField('index');
+            const query = newSavedSearch.searchSource.getField('query') as AggregateQuery;
+            const nextDataView = await getEsqlDataView(query, currentDataView, discoverServices);
+            return { savedSearch: newSavedSearch, dataView: nextDataView };
+          }
+          return { savedSearch: newSavedSearch };
+        }
+      ),
+      skip(1) // skip the first emit
     )
-    .subscribe((newSavedSearch) => {
+    .subscribe(({ savedSearch: newSavedSearch, dataView: newDataView }) => {
+      if (newDataView) {
+        newSavedSearch.searchSource.setField('index', newDataView);
+        dataView$.next(newDataView);
+      }
       savedSearch$.next(newSavedSearch);
     });
+
+  const syncDataView = dataViews.pipe(skip(1)).subscribe((newDataViews) => {
+    if (!(newDataViews ?? []).length) return;
+    const newDataView = newDataViews![0];
+    searchSource$.next(searchSource$.getValue().setField('index', newDataView));
+    dataView$.next(newDataView);
+  });
+
+  const syncSerializedSearchSource = savedSearch$.pipe(skip(1)).subscribe((newSavedSearch) => {
+    serializedSearchSource$.next(newSavedSearch.searchSource.getSerializedFields());
+  });
 
   return {
     cleanup: () => {
       syncSavedSearch.unsubscribe();
+      syncDataView.unsubscribe();
+      syncSerializedSearchSource.unsubscribe();
     },
     api: {
       dataViews,
@@ -154,9 +195,11 @@ export const initializeSearchEmbeddableApi = async (
     comparators: {
       serializedSearchSource: [
         serializedSearchSource$,
-        (value) => {
-          return; // the search source can't currently be changed from dashboard, so the setter is not necessary
+        async (value) => {
+          const newSearchSource = await discoverServices.data.search.searchSource.create(value);
+          searchSource$.next(newSearchSource);
         },
+        (a, b) => JSON.stringify(a) === JSON.stringify(b),
       ],
       viewMode: [
         savedSearchViewMode$,

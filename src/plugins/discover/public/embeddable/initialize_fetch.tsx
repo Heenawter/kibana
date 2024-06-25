@@ -6,7 +6,7 @@
  * Side Public License, v 1.
  */
 
-import { BehaviorSubject, combineLatest, lastValueFrom, switchMap } from 'rxjs';
+import { BehaviorSubject, combineLatest, debounceTime, lastValueFrom, switchMap } from 'rxjs';
 
 import { KibanaExecutionContext } from '@kbn/core/types';
 import {
@@ -93,10 +93,10 @@ export function initializeFetch({
   const requestAdapter = new RequestAdapter();
   let abortController = new AbortController();
 
-  const fetchSubscription = combineLatest([fetch$(api), api.savedSearch$, api.dataViews])
+  const fetchSubscription = combineLatest([fetch$(api), api.savedSearch$, stateManager.dataView])
     .pipe(
-      switchMap(async ([fetchContext, savedSearch, dataViews]) => {
-        const dataView = dataViews?.length ? dataViews[0] : undefined;
+      debounceTime(1),
+      switchMap(async ([fetchContext, savedSearch, dataView]) => {
         api.blockingError.next(undefined);
         if (!dataView || !savedSearch.searchSource) {
           return;

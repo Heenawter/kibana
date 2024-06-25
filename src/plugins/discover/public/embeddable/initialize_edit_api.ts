@@ -81,6 +81,7 @@ export function initializeEditApi({
       const api = getApi();
       await openSavedSearchEditFlyout({
         api,
+        parentApi,
         id: uuid,
         stateManager,
         isEditing: true,

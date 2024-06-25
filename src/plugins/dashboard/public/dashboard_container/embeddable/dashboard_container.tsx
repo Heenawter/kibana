@@ -525,6 +525,7 @@ export class DashboardContainer
           ...panelPackage.initialState,
           id: newId,
         },
+        references: panelPackage.references,
       };
       this.updateInput({ panels: { ...otherPanels, [newId]: newPanel } });
       onSuccess(newId, newPanel.explicitInput.title);

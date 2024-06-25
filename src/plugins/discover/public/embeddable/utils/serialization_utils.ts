@@ -59,7 +59,7 @@ export const deserializeState = async ({
       undefined,
       inject(
         serializedState.rawState as unknown as EmbeddableStateWithType,
-        serializedState.references ?? []
+        serializedState.rawState.attributes?.references ?? []
       ) as SavedSearchUnwrapResult,
       true
     );

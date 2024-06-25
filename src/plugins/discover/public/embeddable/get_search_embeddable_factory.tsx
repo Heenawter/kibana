@@ -38,6 +38,7 @@ import {
   SearchEmbeddableApi,
   SearchEmbeddableRuntimeState,
   SearchEmbeddableSerializedState,
+  SearchEmbeddableStateManager,
 } from './types';
 import { deserializeState, serializeState } from './utils/serialization_utils';
 
@@ -90,6 +91,7 @@ export const getSearchEmbeddableFactory = ({
       const searchEmbeddable = await initializeSearchEmbeddableApi(initialState, {
         discoverServices,
       });
+
       const unsubscribeFromFetch = initializeFetch({
         api: {
           parentApi,
@@ -98,8 +100,8 @@ export const getSearchEmbeddableFactory = ({
           savedSearch$: searchEmbeddable.api.savedSearch$,
           dataViews: searchEmbeddable.api.dataViews,
           savedObjectId: savedObjectId$,
-          dataLoading: dataLoading$,
           blockingError: blockingError$,
+          dataLoading: dataLoading$,
           fetchContext$,
           fetchWarnings$,
         },
@@ -134,6 +136,7 @@ export const getSearchEmbeddableFactory = ({
               serializedSearchSource: savedSearch.searchSource.getSerializedFields(),
             };
           },
+          getStateManager: () => searchEmbeddable.stateManager,
           hasTimeRange: () => {
             const fetchContext = fetchContext$.getValue();
             return fetchContext?.timeslice !== undefined || fetchContext?.timeRange !== undefined;
@@ -201,9 +204,9 @@ export const getSearchEmbeddableFactory = ({
       return {
         api,
         Component: () => {
-          const [savedSearch, dataViews] = useBatchedPublishingSubjects(
+          const [savedSearch, dataView] = useBatchedPublishingSubjects(
             api.savedSearch$,
-            api.dataViews
+            searchEmbeddable.stateManager.dataView
           );
 
           useEffect(() => {
@@ -220,27 +223,6 @@ export const getSearchEmbeddableFactory = ({
               isEsqlMode: isEsqlMode(savedSearch),
             });
           }, [savedSearch]);
-
-          const dataView = useMemo(() => {
-            const hasDataView = (dataViews ?? []).length > 0;
-            if (!hasDataView) {
-              blockingError$.next(
-                new Error(
-                  i18n.translate('discover.embeddable.search.dataViewError', {
-                    defaultMessage: 'Missing data view {indexPatternId}',
-                    values: {
-                      indexPatternId:
-                        typeof initialState.serializedSearchSource?.index === 'string'
-                          ? initialState.serializedSearchSource.index
-                          : initialState.serializedSearchSource?.index?.id ?? '',
-                    },
-                  })
-                )
-              );
-              return;
-            }
-            return dataViews![0];
-          }, [dataViews]);
 
           const onAddFilter = useCallback(
             async (field, value, operator) => {

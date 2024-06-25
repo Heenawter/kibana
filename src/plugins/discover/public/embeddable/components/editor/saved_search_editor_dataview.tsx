@@ -6,17 +6,12 @@
  * Side Public License, v 1.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
-import { EuiPanel, EuiSpacer } from '@elastic/eui';
-import { DataViewListItem } from '@kbn/data-views-plugin/common';
+import { EuiPanel } from '@elastic/eui';
+import { DataView, DataViewListItem } from '@kbn/data-views-plugin/common';
 import { i18n } from '@kbn/i18n';
-import {
-  PublishesDataViews,
-  useBatchedOptionalPublishingSubjects,
-  useBatchedPublishingSubjects,
-} from '@kbn/presentation-publishing';
-import { DataView } from '@kbn/data-views-plugin/common';
+import { useBatchedPublishingSubjects } from '@kbn/presentation-publishing';
 import { LazyDataViewPicker, withSuspense } from '@kbn/presentation-util-plugin/public';
 import {
   UnifiedFieldListSidebarContainer,
@@ -25,7 +20,6 @@ import {
 
 import { DiscoverServices } from '../../../build_services';
 import { SearchEmbeddableApi, SearchEmbeddableStateManager } from '../../types';
-import useAsync from 'react-use/lib/useAsync';
 
 const DataViewPicker = withSuspense(LazyDataViewPicker, null);
 

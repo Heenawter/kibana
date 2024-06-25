@@ -43,7 +43,13 @@
       "observabilityAIAssistant",
       "aiops"
     ],
-    "requiredBundles": ["kibanaUtils", "kibanaReact", "unifiedSearch", "savedObjects"],
+    "requiredBundles": [
+      "kibanaUtils",
+      "kibanaReact",
+      "unifiedSearch",
+      "savedObjects",
+      "textBasedLanguages"
+    ],
     "extraPublicDirs": ["common"]
   }
 }

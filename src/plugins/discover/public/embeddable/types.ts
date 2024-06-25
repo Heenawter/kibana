@@ -6,6 +6,7 @@
  * Side Public License, v 1.
  */
 
+import { ISearchSource } from '@kbn/data-plugin/common';
 import { DataView } from '@kbn/data-views-plugin/common';
 import { DataTableRecord } from '@kbn/discover-utils/types';
 import type { DefaultEmbeddableApi } from '@kbn/embeddable-plugin/public';
@@ -49,8 +50,8 @@ export type SearchEmbeddableState = Pick<
 export type SearchEmbeddableStateManager = {
   [key in keyof Required<SearchEmbeddableState>]: BehaviorSubject<SearchEmbeddableState[key]>;
 } & {
-  dataViews: BehaviorSubject<DataView[] | undefined>;
-  dataViewId: BehaviorSubject<string | undefined>;
+  dataView: BehaviorSubject<DataView | undefined>;
+  searchSource: BehaviorSubject<ISearchSource>;
 };
 
 export type SearchEmbeddableSerializedAttributes = Omit<
@@ -63,7 +64,7 @@ export type SearchEmbeddableSerializedState = SerializedTitles &
   SerializedTimeRange &
   Partial<Pick<SavedSearchAttributes, typeof EDITABLE_SAVED_SEARCH_KEYS[number]>> & {
     // by value
-    attributes?: SavedSearchAttributes & { references: SavedSearch['references'] };
+    attributes?: Partial<SavedSearchAttributes> & { references: SavedSearch['references'] };
     // by reference
     savedObjectId?: string;
   };
@@ -88,7 +89,9 @@ export type SearchEmbeddableApi = DefaultEmbeddableApi<
   PublishesDataViews &
   HasInPlaceLibraryTransforms &
   HasTimeRange &
-  Partial<HasEditCapabilities & PublishesSavedObjectId>;
+  Partial<HasEditCapabilities & PublishesSavedObjectId> & {
+    getStateManager: () => SearchEmbeddableStateManager; // probably not best to expose this but makes creation easier ¯\_(ツ)_/¯
+  };
 
 export interface PublishesSavedSearch {
   savedSearch$: PublishingSubject<SavedSearch>;

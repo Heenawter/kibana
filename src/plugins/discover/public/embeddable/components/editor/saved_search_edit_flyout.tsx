@@ -25,9 +25,9 @@ import { euiThemeVars } from '@kbn/ui-theme';
 
 import { DiscoverServices } from '../../../build_services';
 import { SearchEmbeddableApi, SearchEmbeddableStateManager } from '../../types';
-import { SavedSearchDataviewEditor } from './saved_search_dataview_editor';
-
-import './saved_search_editor_flyout.scss';
+import { SavedSearchDataviewEditor } from './saved_search_editor_dataview';
+import { SavedSearchEsqlEditor } from './saved_search_editor_esql';
+import './saved_search_edit_flyout.scss';
 
 // eslint-disable-next-line import/no-default-export
 export default function SavedSearchEditorFlyout({
@@ -43,7 +43,7 @@ export default function SavedSearchEditorFlyout({
   api: SearchEmbeddableApi;
   isEsql: boolean;
   isEditing: boolean;
-  navigateToEditor: () => Promise<void>;
+  navigateToEditor?: () => Promise<void>;
   onCancel: () => void;
   onSave: () => Promise<void>;
   stateManager: SearchEmbeddableStateManager;
@@ -76,18 +76,20 @@ export default function SavedSearchEditorFlyout({
             </EuiTitle>
           </EuiFlexItem>
 
-          <EuiFlexItem grow={false}>
-            <EuiLink onClick={navigateToEditor}>
-              {i18n.translate('discover.embeddable.search.editor.editLinkLabel', {
-                defaultMessage: 'Edit in Discover',
-              })}
-            </EuiLink>
-          </EuiFlexItem>
+          {navigateToEditor && (
+            <EuiFlexItem grow={false}>
+              <EuiLink onClick={navigateToEditor}>
+                {i18n.translate('discover.embeddable.search.editor.editLinkLabel', {
+                  defaultMessage: 'Edit in Discover',
+                })}
+              </EuiLink>
+            </EuiFlexItem>
+          )}
         </EuiFlexGroup>
       </EuiFlyoutHeader>
       <EuiFlyoutBody>
         {isEsql ? (
-          <>body</>
+          <SavedSearchEsqlEditor api={api} stateManager={stateManager} services={services} />
         ) : (
           <SavedSearchDataviewEditor api={api} stateManager={stateManager} services={services} />
         )}

@@ -10,30 +10,26 @@ import React, { lazy, Suspense } from 'react';
 
 import { EuiLoadingSpinner } from '@elastic/eui';
 import { KibanaContextProvider } from '@kbn/kibana-react-plugin/public';
-import { tracksOverlays } from '@kbn/presentation-containers';
+import { apiIsPresentationContainer, tracksOverlays } from '@kbn/presentation-containers';
 import { KibanaRenderContextProvider } from '@kbn/react-kibana-context-render';
 import { toMountPoint } from '@kbn/react-kibana-mount';
 
 import { DiscoverServices } from '../../../build_services';
-import { SearchEmbeddableApi, SearchEmbeddableStateManager } from '../../types';
 import { isEsqlMode } from '../../initialize_fetch';
+import { SearchEmbeddableApi } from '../../types';
 
 const SavedSearchEditorFlyout = lazy(() => import('./saved_search_edit_flyout'));
 
 export const openSavedSearchEditFlyout = async ({
-  id,
-  api,
   isEditing,
   services,
-  stateManager,
+  api,
   navigateToEditor,
 }: {
-  id: string;
-  api: SearchEmbeddableApi;
   isEditing: boolean;
   services: DiscoverServices;
-  stateManager: SearchEmbeddableStateManager;
-  navigateToEditor: () => Promise<void>;
+  api: SearchEmbeddableApi;
+  navigateToEditor?: () => Promise<void>;
 }) => {
   const overlayTracker = tracksOverlays(api.parentApi) ? api.parentApi : undefined;
   // const initialState = api.snapshotRuntimeState();
@@ -42,6 +38,9 @@ export const openSavedSearchEditFlyout = async ({
   return new Promise(async (resolve, reject) => {
     try {
       const onCancel = () => {
+        if (!isEditing && apiIsPresentationContainer(api.parentApi)) {
+          api.parentApi.removePanel(api.uuid);
+        }
         // Reset to initialState in case user has changed the preview state
         // if (deepEqual(initialState, newState)) {
         //   closeOverlay(overlay);
@@ -86,7 +85,7 @@ export const openSavedSearchEditFlyout = async ({
                   onCancel={onCancel}
                   services={services}
                   isEditing={isEditing}
-                  stateManager={stateManager}
+                  stateManager={api.getStateManager()}
                   navigateToEditor={navigateToEditor}
                 />
               </Suspense>
@@ -107,7 +106,7 @@ export const openSavedSearchEditFlyout = async ({
       );
 
       if (tracksOverlays(api.parentApi)) {
-        api.parentApi.openOverlay(flyoutSession, { focusedPanelId: id });
+        api.parentApi.openOverlay(flyoutSession, { focusedPanelId: api.uuid });
       }
     } catch (error) {
       reject(error);
