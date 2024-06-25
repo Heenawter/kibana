@@ -6,22 +6,19 @@
  * Side Public License, v 1.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 
 import { useBatchedPublishingSubjects } from '@kbn/presentation-publishing';
-import { LazyDataViewPicker, withSuspense } from '@kbn/presentation-util-plugin/public';
 import {
   UnifiedFieldListSidebarContainer,
   type UnifiedFieldListSidebarContainerProps,
 } from '@kbn/unified-field-list';
 
+import { EuiPanel, EuiSpacer } from '@elastic/eui';
 import { AggregateQuery } from '@kbn/es-query';
 import { TextBasedLangEditor } from '@kbn/text-based-languages/public';
-import { DiscoverServices } from '../../../build_services';
+import { useDiscoverServices } from '../../../hooks/use_discover_services';
 import { SearchEmbeddableApi, SearchEmbeddableStateManager } from '../../types';
-import { EuiPanel, EuiSpacer } from '@elastic/eui';
-
-const DataViewPicker = withSuspense(LazyDataViewPicker, null);
 
 const getCreationOptions: UnifiedFieldListSidebarContainerProps['getCreationOptions'] = () => {
   return {
@@ -36,30 +33,26 @@ const getCreationOptions: UnifiedFieldListSidebarContainerProps['getCreationOpti
 export function SavedSearchEsqlEditor({
   api,
   stateManager,
-  services,
 }: {
   api: SearchEmbeddableApi;
   stateManager: SearchEmbeddableStateManager;
-  services: DiscoverServices;
 }) {
-  const [dataView, columns, searchSource, loading] = useBatchedPublishingSubjects(
-    stateManager.dataView,
-    stateManager.columns,
-    stateManager.searchSource,
-    api.dataLoading
-  );
+  const services = useDiscoverServices();
+
+  const [savedSearch, loading] = useBatchedPublishingSubjects(api.savedSearch$, api.dataLoading);
   const [query, setQuery] = useState<AggregateQuery>(
-    searchSource.getField('query') as AggregateQuery
+    savedSearch.searchSource.getField('query') as AggregateQuery
   );
   const prevQuery = useRef<AggregateQuery>(query);
+  const dataView = savedSearch.searchSource.getField('index');
 
   const onTextLangQuerySubmit = useCallback(
     async (q) => {
       if (q) {
-        stateManager.searchSource.next(searchSource.setField('query', q));
+        stateManager.searchSource.next(savedSearch.searchSource.setField('query', q));
       }
     },
-    [searchSource, stateManager.searchSource]
+    [savedSearch.searchSource, stateManager.searchSource]
   );
 
   return (
@@ -94,13 +87,15 @@ export function SavedSearchEsqlEditor({
             showFieldList={true}
             allFields={dataView.fields}
             getCreationOptions={getCreationOptions}
-            workspaceSelectedFieldNames={columns}
+            workspaceSelectedFieldNames={savedSearch.columns}
             services={services}
             onAddFieldToWorkspace={(field) =>
-              stateManager.columns.next([...(columns ?? []), field.name])
+              stateManager.columns.next([...(savedSearch.columns ?? []), field.name])
             }
             onRemoveFieldFromWorkspace={(field) => {
-              stateManager.columns.next((columns ?? []).filter((name) => name !== field.name));
+              stateManager.columns.next(
+                (savedSearch.columns ?? []).filter((name) => name !== field.name)
+              );
             }}
           />
         </EuiPanel>

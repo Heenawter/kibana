@@ -38,7 +38,6 @@ import {
   SearchEmbeddableApi,
   SearchEmbeddableRuntimeState,
   SearchEmbeddableSerializedState,
-  SearchEmbeddableStateManager,
 } from './types';
 import { deserializeState, serializeState } from './utils/serialization_utils';
 
@@ -92,23 +91,6 @@ export const getSearchEmbeddableFactory = ({
         discoverServices,
       });
 
-      const unsubscribeFromFetch = initializeFetch({
-        api: {
-          parentApi,
-          ...titlesApi,
-          ...timeRange.api,
-          savedSearch$: searchEmbeddable.api.savedSearch$,
-          dataViews: searchEmbeddable.api.dataViews,
-          savedObjectId: savedObjectId$,
-          blockingError: blockingError$,
-          dataLoading: dataLoading$,
-          fetchContext$,
-          fetchWarnings$,
-        },
-        discoverServices,
-        stateManager: searchEmbeddable.stateManager,
-      });
-
       const api: SearchEmbeddableApi = buildApi(
         {
           ...titlesApi,
@@ -119,7 +101,6 @@ export const getSearchEmbeddableFactory = ({
             parentApi,
             discoverServices,
             isEditable: startServices.isEditable,
-            stateManager: searchEmbeddable.stateManager,
             getApi: () => ({ ...api, fetchContext$ }),
           }),
           dataLoading: dataLoading$,
@@ -201,13 +182,22 @@ export const getSearchEmbeddableFactory = ({
         }
       );
 
+      const unsubscribeFromFetch = initializeFetch({
+        api: {
+          ...api,
+          blockingError: blockingError$,
+          dataLoading: dataLoading$,
+          fetchContext$,
+          fetchWarnings$,
+        },
+        discoverServices,
+        stateManager: searchEmbeddable.stateManager,
+      });
+
       return {
         api,
         Component: () => {
-          const [savedSearch, dataView] = useBatchedPublishingSubjects(
-            api.savedSearch$,
-            searchEmbeddable.stateManager.dataView
-          );
+          const [savedSearch] = useBatchedPublishingSubjects(api.savedSearch$);
 
           useEffect(() => {
             return () => {
@@ -226,6 +216,7 @@ export const getSearchEmbeddableFactory = ({
 
           const onAddFilter = useCallback(
             async (field, value, operator) => {
+              const dataView = savedSearch.searchSource.getField('index');
               if (!dataView) return;
 
               let newFilters = generateFilters(
@@ -245,16 +236,16 @@ export const getSearchEmbeddableFactory = ({
                 filters: newFilters,
               });
             },
-            [dataView]
+            [savedSearch]
           );
 
           const renderAsFieldStatsTable = useMemo(
             () =>
               discoverServices.uiSettings.get(SHOW_FIELD_STATISTICS) &&
               viewMode === VIEW_MODE.AGGREGATED_LEVEL &&
-              dataView &&
+              savedSearch.searchSource.getField('index') &&
               Array.isArray(savedSearch.columns),
-            [savedSearch, dataView, viewMode]
+            [savedSearch, viewMode]
           );
 
           return (
@@ -266,7 +257,7 @@ export const getSearchEmbeddableFactory = ({
                       ...api,
                       fetchContext$,
                     }}
-                    dataView={dataView!}
+                    dataView={savedSearch.searchSource.getField('index')!}
                     onAddFilter={onAddFilter}
                     stateManager={searchEmbeddable.stateManager}
                   />
@@ -278,7 +269,7 @@ export const getSearchEmbeddableFactory = ({
                   >
                     <SearchEmbeddableGridComponent
                       api={{ ...api, fetchWarnings$ }}
-                      dataView={dataView!}
+                      dataView={savedSearch.searchSource.getField('index')!}
                       onAddFilter={isEsqlMode(savedSearch) ? undefined : onAddFilter}
                       stateManager={searchEmbeddable.stateManager}
                     />

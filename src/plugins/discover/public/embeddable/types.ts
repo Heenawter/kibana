@@ -50,7 +50,6 @@ export type SearchEmbeddableState = Pick<
 export type SearchEmbeddableStateManager = {
   [key in keyof Required<SearchEmbeddableState>]: BehaviorSubject<SearchEmbeddableState[key]>;
 } & {
-  dataView: BehaviorSubject<DataView | undefined>;
   searchSource: BehaviorSubject<ISearchSource>;
 };
 

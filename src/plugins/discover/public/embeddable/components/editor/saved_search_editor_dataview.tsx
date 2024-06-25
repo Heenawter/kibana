@@ -6,10 +6,10 @@
  * Side Public License, v 1.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { EuiPanel } from '@elastic/eui';
-import { DataView, DataViewListItem } from '@kbn/data-views-plugin/common';
+import { EuiPanel, EuiSpacer } from '@elastic/eui';
+import { DataViewListItem } from '@kbn/data-views-plugin/common';
 import { i18n } from '@kbn/i18n';
 import { useBatchedPublishingSubjects } from '@kbn/presentation-publishing';
 import { LazyDataViewPicker, withSuspense } from '@kbn/presentation-util-plugin/public';
@@ -18,7 +18,7 @@ import {
   type UnifiedFieldListSidebarContainerProps,
 } from '@kbn/unified-field-list';
 
-import { DiscoverServices } from '../../../build_services';
+import { useDiscoverServices } from '../../../hooks/use_discover_services';
 import { SearchEmbeddableApi, SearchEmbeddableStateManager } from '../../types';
 
 const DataViewPicker = withSuspense(LazyDataViewPicker, null);
@@ -36,22 +36,22 @@ const getCreationOptions: UnifiedFieldListSidebarContainerProps['getCreationOpti
 export function SavedSearchDataviewEditor({
   api,
   stateManager,
-  services,
 }: {
   api: SearchEmbeddableApi;
   stateManager: SearchEmbeddableStateManager;
-  services: DiscoverServices;
 }) {
+  const services = useDiscoverServices();
+
   const initialState = useRef({
     columns: stateManager.columns.getValue(),
-    dataViewId: stateManager.dataViewId.getValue(),
+    dataViewId: stateManager.searchSource.getValue().getField('index')?.id,
   });
-  const [selectedDataViewId, columns] = useBatchedPublishingSubjects(
-    stateManager.dataViewId,
+  const [savedSearch, columns] = useBatchedPublishingSubjects(
+    api.savedSearch$,
     stateManager.columns
   );
+  const selectedDataView = savedSearch.searchSource.getField('index');
   const [dataViews, setDataViews] = useState<DataViewListItem[]>([]);
-  const [selectedDataView, setSelectedDataView] = useState<DataView | undefined>(undefined);
 
   useEffect(() => {
     let mounted = true;
@@ -65,30 +65,22 @@ export function SavedSearchDataviewEditor({
     };
   }, [services.data.dataViews]);
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchDataView = async () => {
-      if (!selectedDataViewId) return;
-      const dataView = await services.data.dataViews.get(selectedDataViewId);
-      if (mounted) {
-        setSelectedDataView(dataView);
-        stateManager.dataViews.next([dataView]);
-      }
-    };
-    fetchDataView();
-    return () => {
-      mounted = false;
-    };
-  }, [selectedDataViewId, services.data.dataViews, stateManager.dataViews, stateManager.columns]);
+  const onSelectDataView = useCallback(
+    async (nextSelection: string) => {
+      const dataView = await services.data.dataViews.get(nextSelection);
+      stateManager.searchSource.next(savedSearch.searchSource.setField('index', dataView));
+    },
+    [services.data.dataViews, savedSearch.searchSource, stateManager.searchSource]
+  );
 
   return (
     <>
       <EuiPanel className="editorPanel" paddingSize="s">
         <DataViewPicker
           dataViews={dataViews ?? []}
-          selectedDataViewId={selectedDataViewId}
-          onChangeDataViewId={(nextSelection) => {
-            stateManager.dataViewId.next(nextSelection);
+          selectedDataViewId={selectedDataView?.id}
+          onChangeDataViewId={async (nextSelection) => {
+            await onSelectDataView(nextSelection);
             if (nextSelection === initialState.current.dataViewId) {
               stateManager.columns.next(initialState.current.columns);
             } else {
@@ -125,10 +117,10 @@ export function SavedSearchDataviewEditor({
           <>error</>
         )}
       </EuiPanel>
-      {/* <EuiSpacer size="m" /> */}
-      {/* <EuiPanel className="editorPanel" paddingSize="s">
+      <EuiSpacer size="m" />
+      <EuiPanel className="editorPanel" paddingSize="s">
         test
-      </EuiPanel> */}
+      </EuiPanel>
     </>
   );
 }

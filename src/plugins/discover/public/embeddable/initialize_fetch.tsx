@@ -24,12 +24,7 @@ import {
   apiHasParentApi,
   fetch$,
   FetchContext,
-  HasParentApi,
-  PublishesDataViews,
-  PublishesPanelTitle,
-  PublishesSavedObjectId,
 } from '@kbn/presentation-publishing';
-import { PublishesWritableTimeRange } from '@kbn/presentation-publishing/interfaces/fetch/publishes_unified_search';
 import { SavedSearch } from '@kbn/saved-search-plugin/public';
 import { SearchResponseWarning } from '@kbn/search-response-warnings';
 import { SearchResponseIncompleteWarning } from '@kbn/search-response-warnings/src/types';
@@ -40,19 +35,15 @@ import { fetchEsql } from '../application/main/data_fetching/fetch_esql';
 import { DiscoverServices } from '../build_services';
 import { getAllowedSampleSize } from '../utils/get_allowed_sample_size';
 import { getAppTarget } from './initialize_edit_api';
-import { PublishesSavedSearch, SearchEmbeddableStateManager } from './types';
+import { SearchEmbeddableApi, SearchEmbeddableStateManager } from './types';
 import { getTimeRangeFromFetchContext, updateSearchSource } from './utils/update_search_source';
 
-type SavedSearchPartialFetchApi = PublishesSavedSearch &
-  PublishesSavedObjectId &
-  PublishesDataViews &
-  PublishesPanelTitle &
-  PublishesWritableTimeRange & {
-    fetchContext$: BehaviorSubject<FetchContext | undefined>;
-    dataLoading: BehaviorSubject<boolean | undefined>;
-    blockingError: BehaviorSubject<Error | undefined>;
-    fetchWarnings$: BehaviorSubject<SearchResponseIncompleteWarning[]>;
-  } & HasParentApi;
+type SavedSearchPrivateFetchApi = SearchEmbeddableApi & {
+  fetchContext$: BehaviorSubject<FetchContext | undefined>;
+  dataLoading: BehaviorSubject<boolean | undefined>;
+  blockingError: BehaviorSubject<Error | undefined>;
+  fetchWarnings$: BehaviorSubject<SearchResponseIncompleteWarning[]>;
+};
 
 export const isEsqlMode = (savedSearch: Pick<SavedSearch, 'searchSource'>): boolean => {
   const query = savedSearch.searchSource.getField('query');
@@ -60,7 +51,7 @@ export const isEsqlMode = (savedSearch: Pick<SavedSearch, 'searchSource'>): bool
 };
 
 const getExecutionContext = async (
-  api: SavedSearchPartialFetchApi,
+  api: SavedSearchPrivateFetchApi,
   discoverServices: DiscoverServices
 ) => {
   const { editUrl } = await getAppTarget(api, discoverServices);
@@ -86,17 +77,18 @@ export function initializeFetch({
   stateManager,
   discoverServices,
 }: {
-  api: SavedSearchPartialFetchApi;
+  api: SavedSearchPrivateFetchApi;
   stateManager: SearchEmbeddableStateManager;
   discoverServices: DiscoverServices;
 }) {
   const requestAdapter = new RequestAdapter();
   let abortController = new AbortController();
 
-  const fetchSubscription = combineLatest([fetch$(api), api.savedSearch$, stateManager.dataView])
+  const fetchSubscription = combineLatest([fetch$(api), api.savedSearch$])
     .pipe(
       debounceTime(1),
-      switchMap(async ([fetchContext, savedSearch, dataView]) => {
+      switchMap(async ([fetchContext, savedSearch]) => {
+        const dataView = savedSearch.searchSource.getField('index');
         api.blockingError.next(undefined);
         if (!dataView || !savedSearch.searchSource) {
           return;

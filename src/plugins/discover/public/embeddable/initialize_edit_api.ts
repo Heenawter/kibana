@@ -10,7 +10,7 @@ import { i18n } from '@kbn/i18n';
 import { apiHasAppContext, FetchContext, PublishingSubject } from '@kbn/presentation-publishing';
 import { DiscoverServices } from '../build_services';
 import { openSavedSearchEditFlyout } from './components/editor/open_saved_search_edit_flyout';
-import { SearchEmbeddableApi, SearchEmbeddableStateManager } from './types';
+import { SearchEmbeddableApi } from './types';
 import { getDiscoverLocatorParams } from './utils/get_discover_locator_params';
 
 export async function getAppTarget(api: SearchEmbeddableApi, discoverServices: DiscoverServices) {
@@ -32,19 +32,17 @@ export async function getAppTarget(api: SearchEmbeddableApi, discoverServices: D
 
 export function initializeEditApi({
   uuid,
-  parentApi,
   getApi,
+  parentApi,
   isEditable,
-  stateManager,
   discoverServices,
 }: {
   uuid: string;
-  parentApi?: unknown;
   getApi: () => SearchEmbeddableApi & {
     fetchContext$: PublishingSubject<FetchContext | undefined>;
   };
+  parentApi?: unknown;
   isEditable: () => boolean;
-  stateManager: SearchEmbeddableStateManager;
   discoverServices: DiscoverServices;
 }) {
   /**
@@ -81,9 +79,6 @@ export function initializeEditApi({
       const api = getApi();
       await openSavedSearchEditFlyout({
         api,
-        parentApi,
-        id: uuid,
-        stateManager,
         isEditing: true,
         navigateToEditor,
         services: discoverServices,
