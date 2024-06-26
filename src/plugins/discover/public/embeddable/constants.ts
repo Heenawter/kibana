@@ -24,14 +24,14 @@ export const SEARCH_EMBEDDABLE_CELL_ACTIONS_TRIGGER: Trigger = {
 export const DEFAULT_HEADER_ROW_HEIGHT_LINES = 3;
 
 /** This constant refers to the parts of the saved search state that can be edited from a dashboard */
-export const EDITABLE_SAVED_SEARCH_KEYS: Readonly<Array<keyof SavedSearchAttributes>> = [
-  'sort',
-  'columns',
-  'rowHeight',
-  'sampleSize',
-  'rowsPerPage',
-  'headerRowHeight',
-] as const;
+export const EDITABLE_SAVED_SEARCH_KEYS: Readonly<
+  Array<
+    keyof Pick<
+      SavedSearchAttributes,
+      'sort' | 'columns' | 'rowHeight' | 'sampleSize' | 'rowsPerPage' | 'headerRowHeight'
+    >
+  >
+> = ['sort', 'columns', 'rowHeight', 'sampleSize', 'rowsPerPage', 'headerRowHeight'] as const;
 
 /** This constant refers to the dashboard panel specific state */
 export const EDITABLE_PANEL_KEYS = [

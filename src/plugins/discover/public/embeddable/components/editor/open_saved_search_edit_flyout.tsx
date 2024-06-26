@@ -32,45 +32,30 @@ export const openSavedSearchEditFlyout = async ({
   navigateToEditor?: () => Promise<void>;
 }) => {
   const overlayTracker = tracksOverlays(api.parentApi) ? api.parentApi : undefined;
-  // const initialState = api.snapshotRuntimeState();
+  const initialState = api.snapshotRuntimeState();
   const isEsql = isEsqlMode(api.savedSearch$.getValue());
 
   return new Promise(async (resolve, reject) => {
     try {
-      const onCancel = () => {
+      const onCancel = async () => {
         if (!isEditing && apiIsPresentationContainer(api.parentApi)) {
           api.parentApi.removePanel(api.uuid);
+        } else {
+          // Reset to initialState
+          const stateManager = api.getStateManager();
+          const initialSearchSource = await services.data.search.searchSource.create(
+            initialState.serializedSearchSource
+          );
+          stateManager.searchSource.next(initialSearchSource);
+          stateManager.columns.next(initialState.columns);
         }
-        // Reset to initialState in case user has changed the preview state
-        // if (deepEqual(initialState, newState)) {
-        //   closeOverlay(overlay);
-        //   return;
-        // }
-
-        // if (hasChanged && fieldStatsControlsApi && initialState) {
-        //   fieldStatsControlsApi.updateUserInput(initialState);
-        // }
-
         flyoutSession.close();
         overlayTracker?.clearOverlays();
       };
 
       const onSave = async () => {
-        // const esqlQuery = nextUpdate?.query?.esql;
-        // if (isDefined(esqlQuery)) {
-        //   const indexPatternFromQuery = getIndexPatternFromESQLQuery(esqlQuery);
-        //   const dv = await getOrCreateDataViewByIndexPattern(
-        //     pluginStart.data.dataViews,
-        //     indexPatternFromQuery,
-        //     undefined
-        //   );
-        //   if (dv?.id && nextUpdate.dataViewId !== dv.id) {
-        //     nextUpdate.dataViewId = dv.id;
-        //   }
-        // }
-        // resolve(nextUpdate);
-        // flyoutSession.close();
-        // overlayTracker?.clearOverlays();
+        flyoutSession.close();
+        overlayTracker?.clearOverlays();
       };
 
       const flyoutSession = services.core.overlays.openFlyout(

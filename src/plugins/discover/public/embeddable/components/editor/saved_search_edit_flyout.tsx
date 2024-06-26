@@ -6,7 +6,7 @@
  * Side Public License, v 1.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 
 import {
   EuiButton,
@@ -44,11 +44,13 @@ export default function SavedSearchEditorFlyout({
   isEsql: boolean;
   isEditing: boolean;
   navigateToEditor?: () => Promise<void>;
-  onCancel: () => void;
+  onCancel: () => Promise<void>;
   onSave: () => Promise<void>;
   stateManager: SearchEmbeddableStateManager;
   services: DiscoverServices;
 }) {
+  const [isValid, setIsValid] = useState<boolean>(true);
+
   return (
     <>
       <EuiFlyoutHeader
@@ -66,11 +68,9 @@ export default function SavedSearchEditorFlyout({
                 {isEditing
                   ? i18n.translate('discover.embeddable.search.editor.editLabel', {
                       defaultMessage: 'Edit saved search',
-                      // values: { lang: language },
                     })
                   : i18n.translate('discover.embeddable.search.editor.createLabel', {
                       defaultMessage: 'Create saved search',
-                      // values: { lang: language },
                     })}
               </h2>
             </EuiTitle>
@@ -89,7 +89,7 @@ export default function SavedSearchEditorFlyout({
       </EuiFlyoutHeader>
       <EuiFlyoutBody>
         {isEsql ? (
-          <SavedSearchEsqlEditor api={api} stateManager={stateManager} />
+          <SavedSearchEsqlEditor api={api} stateManager={stateManager} setIsValid={setIsValid} />
         ) : (
           <SavedSearchDataviewEditor api={api} stateManager={stateManager} />
         )}
@@ -120,7 +120,7 @@ export default function SavedSearchEditorFlyout({
               aria-label={i18n.translate('discover.embeddable.search.editor.applyFlyoutAriaLabel', {
                 defaultMessage: 'Apply changes',
               })}
-              disabled={Boolean(isEditing) ? true : false} // TODO: Handle validation when creating
+              disabled={isEsql ? !isValid : false}
               iconType="check"
             >
               {i18n.translate('discover.embeddable.search.editor.applyFlyoutLabel', {

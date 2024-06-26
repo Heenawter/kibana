@@ -7,7 +7,6 @@
  */
 
 import { ISearchSource } from '@kbn/data-plugin/common';
-import { DataView } from '@kbn/data-views-plugin/common';
 import { DataTableRecord } from '@kbn/discover-utils/types';
 import type { DefaultEmbeddableApi } from '@kbn/embeddable-plugin/public';
 import {
@@ -33,14 +32,7 @@ import { EDITABLE_SAVED_SEARCH_KEYS } from './constants';
 
 export type SearchEmbeddableState = Pick<
   SerializableSavedSearch,
-  | 'rowHeight'
-  | 'rowsPerPage'
-  | 'headerRowHeight'
-  | 'columns'
-  | 'sort'
-  | 'sampleSize'
-  | 'breakdownField'
-  | 'viewMode'
+  typeof EDITABLE_SAVED_SEARCH_KEYS[number] | 'breakdownField' | 'viewMode'
 > & {
   rows: DataTableRecord[];
   columnsMeta: DataTableColumnsMeta | undefined;

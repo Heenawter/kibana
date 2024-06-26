@@ -6,7 +6,7 @@
  * Side Public License, v 1.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useBatchedPublishingSubjects } from '@kbn/presentation-publishing';
 import {
@@ -33,9 +33,11 @@ const getCreationOptions: UnifiedFieldListSidebarContainerProps['getCreationOpti
 export function SavedSearchEsqlEditor({
   api,
   stateManager,
+  setIsValid,
 }: {
   api: SearchEmbeddableApi;
   stateManager: SearchEmbeddableStateManager;
+  setIsValid: (valid: boolean) => void;
 }) {
   const services = useDiscoverServices();
 
@@ -44,15 +46,23 @@ export function SavedSearchEsqlEditor({
     savedSearch.searchSource.getField('query') as AggregateQuery
   );
   const prevQuery = useRef<AggregateQuery>(query);
-  const dataView = savedSearch.searchSource.getField('index');
+
+  const dataView = useMemo(() => {
+    return savedSearch.searchSource.getField('index');
+  }, [savedSearch]);
 
   const onTextLangQuerySubmit = useCallback(
     async (q) => {
       if (q) {
         stateManager.searchSource.next(savedSearch.searchSource.setField('query', q));
+        if (q.esql === '') {
+          setIsValid(false);
+        } else {
+          setIsValid(true);
+        }
       }
     },
-    [savedSearch.searchSource, stateManager.searchSource]
+    [savedSearch.searchSource, stateManager.searchSource, setIsValid]
   );
 
   return (
