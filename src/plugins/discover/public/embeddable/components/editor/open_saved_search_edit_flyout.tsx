@@ -48,6 +48,7 @@ export const openSavedSearchEditFlyout = async ({
           );
           stateManager.searchSource.next(initialSearchSource);
           stateManager.columns.next(initialState.columns);
+          api.setTimeRange(initialState.timeRange);
         }
         flyoutSession.close();
         overlayTracker?.clearOverlays();

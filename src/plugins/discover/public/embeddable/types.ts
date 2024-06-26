@@ -22,6 +22,7 @@ import {
   SerializedTimeRange,
   SerializedTitles,
 } from '@kbn/presentation-publishing';
+import { PublishesWritableTimeRange } from '@kbn/presentation-publishing/interfaces/fetch/publishes_unified_search';
 import {
   SavedSearch,
   SavedSearchAttributes,
@@ -81,6 +82,7 @@ export type SearchEmbeddableApi = DefaultEmbeddableApi<
   PublishesDataViews &
   HasInPlaceLibraryTransforms &
   HasTimeRange &
+  PublishesWritableTimeRange &
   Partial<HasEditCapabilities & PublishesSavedObjectId & PublishesUnifiedSearch> & {
     // PublishesUnifiedSearch represents the parts of the search source that should be exposed
     getStateManager: () => SearchEmbeddableStateManager; // probably not best to expose this but makes creation easier ¯\_(ツ)_/¯

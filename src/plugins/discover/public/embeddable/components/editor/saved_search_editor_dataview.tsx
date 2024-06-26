@@ -59,6 +59,7 @@ export function SavedSearchDataviewEditor({
   useEffect(() => {
     (api.parentApi as DashboardContainer).ignoreUnifiedSearch = true;
 
+    /** Handle query */
     const originalQuery = services.data.query.queryString.getQuery();
     services.data.query.queryString.setQuery(savedSearch.searchSource.getField('query') as Query);
     const querySubscription = services.data.query.queryString
@@ -68,10 +69,12 @@ export function SavedSearchDataviewEditor({
         stateManager.searchSource.next(savedSearch.searchSource.setField('query', newQuery));
       });
 
+    /** Handle filters */
     const originalFilters = services.filterManager.getFilters();
-    services.filterManager.setFilters(
-      (savedSearch.searchSource.getField('filter') ?? []) as Filter[]
-    );
+    const customFilters = (savedSearch.searchSource.getField('filter') ?? []) as Filter[];
+    if (customFilters.length > 0) {
+      services.filterManager.setFilters(customFilters);
+    }
     const filtersSubscription = services.filterManager
       .getUpdates$()
       .pipe(debounceTime(1))
@@ -80,13 +83,29 @@ export function SavedSearchDataviewEditor({
         stateManager.searchSource.next(savedSearch.searchSource.setField('filter', newFilters));
       });
 
+    /** Handle time range */
+    const originalTime = services.timefilter.getTime();
+    const customTimeRange = api.timeRange$?.getValue();
+    if (customTimeRange) {
+      services.timefilter.setTime(customTimeRange);
+    }
+    const timeRangeSubscription = services.timefilter
+      .getTimeUpdate$()
+      .pipe(debounceTime(1))
+      .subscribe(() => {
+        const newTimeRange = services.timefilter.getTime();
+        api.setTimeRange(newTimeRange);
+      });
+
     return () => {
       services.data.query.queryString.setQuery(originalQuery);
       services.filterManager.setFilters(originalFilters);
+      services.timefilter.setTime(originalTime);
 
       (api.parentApi as DashboardContainer).ignoreUnifiedSearch = false;
       querySubscription.unsubscribe();
       filtersSubscription.unsubscribe();
+      timeRangeSubscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

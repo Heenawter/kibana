@@ -159,15 +159,27 @@ export const getSearchEmbeddableFactory = ({
             defaultPanelTitle$.next(undefined);
             defaultPanelDescription$.next(undefined);
           },
-          serializeState: () =>
-            serializeState({
+          serializeState: async () => {
+            const savedObjectId = savedObjectId$.getValue();
+            const updatedSavedSearch = searchEmbeddable.api.savedSearch$.getValue();
+            if (savedObjectId && api.unsavedChanges.getValue()) {
+              // update the saved object **only** if something changed
+              await save({
+                ...updatedSavedSearch,
+                ...timeRange.serialize(),
+                id: savedObjectId,
+                title: defaultPanelTitle$.getValue(),
+              });
+            }
+            return serializeState({
               uuid,
               initialState,
               savedSearch: searchEmbeddable.api.savedSearch$.getValue(),
               serializeTitles,
               serializeTimeRange: timeRange.serialize,
               savedObjectId: savedObjectId$.getValue(),
-            }),
+            });
+          },
         },
         {
           ...titleComparators,

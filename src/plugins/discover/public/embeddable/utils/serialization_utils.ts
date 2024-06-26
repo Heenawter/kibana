@@ -7,7 +7,6 @@
  */
 
 import { omit, pick } from 'lodash';
-import deepEqual from 'react-fast-compare';
 
 import { EmbeddableStateWithType } from '@kbn/embeddable-plugin/common';
 import { SerializedPanelState } from '@kbn/presentation-containers';
@@ -43,8 +42,7 @@ export const deserializeState = async ({
     const so = await get(savedObjectId, true);
     const savedObjectOverride = pick(serializedState.rawState, EDITABLE_SAVED_SEARCH_KEYS);
     return {
-      // ignore the time range from the saved object - only global time range + panel time range matter
-      ...omit(so, 'timeRange'),
+      ...so,
       savedObjectId,
       savedObjectTitle: so.title,
       savedObjectDescription: so.description,
@@ -70,7 +68,7 @@ export const deserializeState = async ({
   }
 };
 
-export const serializeState = async ({
+export const serializeState = ({
   uuid,
   initialState,
   savedSearch,
@@ -84,32 +82,18 @@ export const serializeState = async ({
   serializeTitles: () => SerializedTitles;
   serializeTimeRange: () => SerializedTimeRange;
   savedObjectId?: string;
-}): Promise<SerializedPanelState<SearchEmbeddableSerializedState>> => {
+}): SerializedPanelState<SearchEmbeddableSerializedState> => {
   const searchSource = savedSearch.searchSource;
   const { searchSourceJSON, references: originalReferences } = searchSource.serialize();
   const savedSearchAttributes = toSavedSearchAttributes(savedSearch, searchSourceJSON);
 
   if (savedObjectId) {
-    // only save the current state that is **different** than the initial state
-    const overwriteState = EDITABLE_SAVED_SEARCH_KEYS.reduce((prev, key) => {
-      if (
-        deepEqual(
-          savedSearchAttributes[key],
-          initialState[key as keyof SearchEmbeddableRuntimeState]
-        )
-      ) {
-        return prev;
-      }
-      return { ...prev, [key]: savedSearchAttributes[key] };
-    }, {});
-
     return {
       rawState: {
         savedObjectId,
         // Serialize the current dashboard state into the panel state **without** updating the saved object
         ...serializeTitles(),
         ...serializeTimeRange(),
-        ...overwriteState,
       },
       // No references to extract for by-reference embeddable since all references are stored with by-reference saved object
       references: [],

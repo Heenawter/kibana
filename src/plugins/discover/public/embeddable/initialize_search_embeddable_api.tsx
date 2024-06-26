@@ -84,6 +84,8 @@ export const initializeSearchEmbeddableApi = async (
     initialState.serializedSearchSource
   );
   const searchSource$ = new BehaviorSubject<ISearchSource>(searchSource);
+
+  /** Initialize the stuff that is tied to the search source; time range comes from timeRangeApi */
   const filters$ = new BehaviorSubject<Filter[] | undefined>(
     searchSource.getField('filter') as Filter[]
   );
@@ -138,8 +140,7 @@ export const initializeSearchEmbeddableApi = async (
     pick(stateManager, EDITABLE_SAVED_SEARCH_KEYS)
   );
 
-  const parent = searchSource.getParent(); // dashboard
-
+  const searchSourceParent = searchSource.getParent(); // this should be the dashboard
   /** Keep the saved search in sync with any state changes */
   const syncSavedSearch = combineLatest([onAnyStateChange, serializedSearchSource$])
     .pipe(
@@ -152,7 +153,7 @@ export const initializeSearchEmbeddableApi = async (
           const newSearchSource = await discoverServices.data.search.searchSource.create(
             serializedSearchSource
           );
-          newSearchSource.setParent(parent);
+          newSearchSource.setParent(searchSourceParent);
           const newSavedSearch: SavedSearch = {
             ...savedSearch$.getValue(),
             ...partialSavedSearch,
