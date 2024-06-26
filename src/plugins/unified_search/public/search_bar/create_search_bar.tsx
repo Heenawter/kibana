@@ -158,7 +158,6 @@ export function createSearchBar({
     const { useDefaultBehaviors } = props;
     // Handle queries
     const onQuerySubmitRef = useRef(props.onQuerySubmit);
-    console.log('test', props.disableQueryInput);
 
     useEffect(() => {
       onQuerySubmitRef.current = props.onQuerySubmit;

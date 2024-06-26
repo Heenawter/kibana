@@ -314,7 +314,6 @@ export function InternalDashboardTopNav({
     return allBadges;
   }, [hasUnsavedChanges, viewMode, hasRunMigrations, showWriteControls, managed]);
 
-  console.log('dashboard.disableQueryInput', dashboard.disableQueryInput);
   return (
     <div className="dashboardTopNav">
       <h1

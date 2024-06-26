@@ -7,10 +7,11 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { debounceTime } from 'rxjs';
 
 import { EuiPanel, EuiSpacer } from '@elastic/eui';
 import { DashboardContainer } from '@kbn/dashboard-plugin/public/dashboard_container';
-import { AggregateQuery, isOfAggregateQueryType } from '@kbn/es-query';
+import { AggregateQuery, Filter, isOfAggregateQueryType } from '@kbn/es-query';
 import { useBatchedPublishingSubjects } from '@kbn/presentation-publishing';
 import { TextBasedLangEditor } from '@kbn/text-based-languages/public';
 import {
@@ -49,9 +50,46 @@ export function SavedSearchEsqlEditor({
   const prevQuery = useRef<AggregateQuery>(query);
 
   useEffect(() => {
+    (api.parentApi as DashboardContainer).ignoreUnifiedSearch = true;
     (api.parentApi as DashboardContainer).dispatch.setDisableQueryInput(true);
+
+    /** Handle filters */
+    const originalFilters = services.filterManager.getFilters();
+    const customFilters = (savedSearch.searchSource.getField('filter') ?? []) as Filter[];
+    if (customFilters.length > 0) {
+      services.filterManager.setFilters(customFilters);
+    }
+    const filtersSubscription = services.filterManager
+      .getUpdates$()
+      .pipe(debounceTime(1))
+      .subscribe(() => {
+        const newFilters = services.filterManager.getFilters();
+        stateManager.searchSource.next(savedSearch.searchSource.setField('filter', newFilters));
+      });
+
+    /** Handle time range */
+    const originalTime = services.timefilter.getTime();
+    const customTimeRange = api.timeRange$?.getValue();
+    if (customTimeRange) {
+      services.timefilter.setTime(customTimeRange);
+    }
+    const timeRangeSubscription = services.timefilter
+      .getTimeUpdate$()
+      .pipe(debounceTime(1))
+      .subscribe(() => {
+        const newTimeRange = services.timefilter.getTime();
+        api.setTimeRange(newTimeRange);
+      });
+
     return () => {
       (api.parentApi as DashboardContainer).dispatch.setDisableQueryInput(false);
+
+      services.filterManager.setFilters(originalFilters);
+      services.timefilter.setTime(originalTime);
+
+      (api.parentApi as DashboardContainer).ignoreUnifiedSearch = false;
+      filtersSubscription.unsubscribe();
+      timeRangeSubscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
