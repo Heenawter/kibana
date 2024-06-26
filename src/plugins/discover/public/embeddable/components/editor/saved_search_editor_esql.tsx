@@ -6,7 +6,7 @@
  * Side Public License, v 1.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 
 import { useBatchedPublishingSubjects } from '@kbn/presentation-publishing';
 import {
@@ -15,7 +15,7 @@ import {
 } from '@kbn/unified-field-list';
 
 import { EuiPanel, EuiSpacer } from '@elastic/eui';
-import { AggregateQuery } from '@kbn/es-query';
+import { AggregateQuery, isOfAggregateQueryType } from '@kbn/es-query';
 import { TextBasedLangEditor } from '@kbn/text-based-languages/public';
 import { useDiscoverServices } from '../../../hooks/use_discover_services';
 import { SearchEmbeddableApi, SearchEmbeddableStateManager } from '../../types';
@@ -55,11 +55,7 @@ export function SavedSearchEsqlEditor({
     async (q) => {
       if (q) {
         stateManager.searchSource.next(savedSearch.searchSource.setField('query', q));
-        if (q.esql === '') {
-          setIsValid(false);
-        } else {
-          setIsValid(true);
-        }
+        setIsValid(isOfAggregateQueryType(q) && q.esql !== '');
       }
     },
     [savedSearch.searchSource, stateManager.searchSource, setIsValid]

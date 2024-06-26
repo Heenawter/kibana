@@ -104,6 +104,8 @@ export function InternalDashboardTopNav({
   const query = dashboard.select((state) => state.explicitInput.query);
   const title = dashboard.select((state) => state.explicitInput.title);
 
+  // const disableQueryBar = dashboard.select((state) => state.componentState.disableQueryBar);
+
   // store data views in state & subscribe to dashboard data view changes.
   const [allDataViews, setAllDataViews] = useState<DataView[]>([]);
   useEffect(() => {
@@ -321,6 +323,7 @@ export function InternalDashboardTopNav({
       >{`${getDashboardBreadcrumb()} - ${dashboardTitle}`}</h1>
       <TopNavMenu
         {...visibilityProps}
+        // isDisabled={true}
         query={query}
         badges={badges}
         screenTitle={title}

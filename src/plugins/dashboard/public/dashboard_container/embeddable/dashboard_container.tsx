@@ -174,7 +174,7 @@ export class DashboardContainer
   public firstLoad: boolean = true;
   private hadContentfulRender = false;
   private scrollPosition?: number;
-  public ignoreDashboardUnsavedChanges: boolean = false;
+  public ignoreUnifiedSearch: boolean = false;
 
   // cleanup
   public stopSyncingWithUnifiedSearch?: () => void;

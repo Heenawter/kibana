@@ -365,7 +365,6 @@ export const initializeDashboard = async ({
       const stopSyncingUnifiedSearchState =
         syncUnifiedSearchState.bind(dashboardContainer)(kbnUrlStateStorage);
       dashboardContainer.stopSyncingWithUnifiedSearch = () => {
-        console.log('stopSyncingWithUnifiedSearch');
         stopSyncingUnifiedSearchState();
         stopSyncingQueryServiceStateWithUrl();
       };

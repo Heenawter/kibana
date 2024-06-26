@@ -57,7 +57,7 @@ export function SavedSearchDataviewEditor({
   const [dataViews, setDataViews] = useState<DataViewListItem[]>([]);
 
   useEffect(() => {
-    (api.parentApi as DashboardContainer).ignoreDashboardUnsavedChanges = true;
+    (api.parentApi as DashboardContainer).ignoreUnifiedSearch = true;
 
     const originalQuery = services.data.query.queryString.getQuery();
     services.data.query.queryString.setQuery(savedSearch.searchSource.getField('query') as Query);
@@ -84,7 +84,7 @@ export function SavedSearchDataviewEditor({
       services.data.query.queryString.setQuery(originalQuery);
       services.filterManager.setFilters(originalFilters);
 
-      (api.parentApi as DashboardContainer).ignoreDashboardUnsavedChanges = false;
+      (api.parentApi as DashboardContainer).ignoreUnifiedSearch = false;
       querySubscription.unsubscribe();
       filtersSubscription.unsubscribe();
     };

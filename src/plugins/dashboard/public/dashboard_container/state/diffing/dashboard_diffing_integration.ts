@@ -123,9 +123,10 @@ export function startDiffingDashboardState(
           explicitInput: currentInput,
           componentState: { lastSavedInput },
         } = this.getState();
-        const unsavedChanges = this.ignoreDashboardUnsavedChanges
-          ? {}
-          : await getDashboardUnsavedChanges.bind(this)(lastSavedInput, currentInput);
+        const unsavedChanges = await getDashboardUnsavedChanges.bind(this)(
+          lastSavedInput,
+          currentInput
+        );
         return unsavedChanges;
       })();
     })

@@ -14,8 +14,12 @@ import { ISearchSource, SerializedSearchSourceFields } from '@kbn/data-plugin/co
 import { DataView } from '@kbn/data-views-plugin/common';
 import { ROW_HEIGHT_OPTION, SAMPLE_SIZE_SETTING } from '@kbn/discover-utils';
 import { DataTableRecord } from '@kbn/discover-utils/types';
-import { AggregateQuery } from '@kbn/es-query';
-import type { PublishesDataViews, StateComparators } from '@kbn/presentation-publishing';
+import { AggregateQuery, Filter, Query } from '@kbn/es-query';
+import type {
+  PublishesDataViews,
+  PublishesUnifiedSearch,
+  StateComparators,
+} from '@kbn/presentation-publishing';
 import { SavedSearch } from '@kbn/saved-search-plugin/common';
 import { SortOrder, VIEW_MODE } from '@kbn/saved-search-plugin/public';
 import { DataTableColumnsMeta } from '@kbn/unified-data-table';
@@ -32,7 +36,7 @@ import {
   SearchEmbeddableStateManager,
 } from './types';
 
-const initializeSearchSource = async (
+export const initializeSearchSource = async (
   dataService: DiscoverServices['data'],
   serializedSearchSource?: SerializedSearchSourceFields
 ) => {
@@ -68,7 +72,7 @@ export const initializeSearchEmbeddableApi = async (
     discoverServices: DiscoverServices;
   }
 ): Promise<{
-  api: PublishesSavedSearch & PublishesDataViews;
+  api: PublishesSavedSearch & PublishesDataViews & Partial<PublishesUnifiedSearch>;
   stateManager: SearchEmbeddableStateManager;
   comparators: StateComparators<SearchEmbeddableSerializedAttributes>;
   cleanup: () => void;
@@ -80,6 +84,12 @@ export const initializeSearchEmbeddableApi = async (
     initialState.serializedSearchSource
   );
   const searchSource$ = new BehaviorSubject<ISearchSource>(searchSource);
+  const filters$ = new BehaviorSubject<Filter[] | undefined>(
+    searchSource.getField('filter') as Filter[]
+  );
+  const query$ = new BehaviorSubject<Query | AggregateQuery | undefined>(
+    searchSource.getField('query')
+  );
   const dataViews = new BehaviorSubject<DataView[] | undefined>(dataView ? [dataView] : undefined);
 
   /** This is the state that can be initialized from the saved initial state */
@@ -128,6 +138,8 @@ export const initializeSearchEmbeddableApi = async (
     pick(stateManager, EDITABLE_SAVED_SEARCH_KEYS)
   );
 
+  const parent = searchSource.getParent(); // dashboard
+
   /** Keep the saved search in sync with any state changes */
   const syncSavedSearch = combineLatest([onAnyStateChange, serializedSearchSource$])
     .pipe(
@@ -137,17 +149,18 @@ export const initializeSearchEmbeddableApi = async (
           savedSearch: SavedSearch;
           dataView?: DataView;
         }> => {
-          const newSearchSearchSource = await discoverServices.data.search.searchSource.create(
+          const newSearchSource = await discoverServices.data.search.searchSource.create(
             serializedSearchSource
           );
+          newSearchSource.setParent(parent);
           const newSavedSearch: SavedSearch = {
             ...savedSearch$.getValue(),
             ...partialSavedSearch,
-            searchSource: newSearchSearchSource,
+            searchSource: newSearchSource,
           };
           if (isEsqlMode(newSavedSearch)) {
-            const currentDataView = newSearchSearchSource.getField('index');
-            const query = newSearchSearchSource.getField('query') as AggregateQuery;
+            const currentDataView = newSearchSource.getField('index');
+            const query = newSearchSource.getField('query') as AggregateQuery;
             const nextDataView = await getEsqlDataView(query, currentDataView, discoverServices);
             return { savedSearch: newSavedSearch, dataView: nextDataView };
           }
@@ -160,6 +173,8 @@ export const initializeSearchEmbeddableApi = async (
       if (newDataView) {
         newSavedSearch.searchSource.setField('index', newDataView);
       }
+      filters$.next(newSavedSearch.searchSource.getField('filter') as Filter[]);
+      query$.next(newSavedSearch.searchSource.getField('query'));
       savedSearch$.next(newSavedSearch);
     });
 
@@ -181,10 +196,7 @@ export const initializeSearchEmbeddableApi = async (
       syncDataView.unsubscribe();
       syncSerializedSearchSource.unsubscribe();
     },
-    api: {
-      dataViews,
-      savedSearch$,
-    },
+    api: { filters$, query$, dataViews, savedSearch$ },
     stateManager,
     comparators: {
       serializedSearchSource: [

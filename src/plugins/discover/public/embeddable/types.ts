@@ -17,6 +17,7 @@ import {
   PublishesDataLoading,
   PublishesDataViews,
   PublishesSavedObjectId,
+  PublishesUnifiedSearch,
   PublishingSubject,
   SerializedTimeRange,
   SerializedTitles,
@@ -80,7 +81,8 @@ export type SearchEmbeddableApi = DefaultEmbeddableApi<
   PublishesDataViews &
   HasInPlaceLibraryTransforms &
   HasTimeRange &
-  Partial<HasEditCapabilities & PublishesSavedObjectId> & {
+  Partial<HasEditCapabilities & PublishesSavedObjectId & PublishesUnifiedSearch> & {
+    // PublishesUnifiedSearch represents the parts of the search source that should be exposed
     getStateManager: () => SearchEmbeddableStateManager; // probably not best to expose this but makes creation easier ¯\_(ツ)_/¯
   };
 

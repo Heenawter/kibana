@@ -44,6 +44,7 @@ export function syncUnifiedSearchState(
     const {
       explicitInput: { filters, query },
     } = this.getState();
+    if (this.ignoreUnifiedSearch) return;
     OnFiltersChange$.next({
       filters: filters ?? [],
       query: query ?? queryString.getDefaultQuery(),
@@ -66,6 +67,7 @@ export function syncUnifiedSearchState(
       set: ({ filters: newFilters, query: newQuery }) => {
         intermediateFilterState.filters = cleanFiltersForSerialize(newFilters);
         intermediateFilterState.query = newQuery;
+        if (this.ignoreUnifiedSearch) return;
         this.dispatch.setFiltersAndQuery(intermediateFilterState);
       },
       state$: OnFiltersChange$.pipe(distinctUntilChanged()),
