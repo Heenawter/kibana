@@ -52,6 +52,7 @@ export function SavedSearchEsqlEditor({
   useEffect(() => {
     (api.parentApi as DashboardContainer).ignoreUnifiedSearch = true;
     (api.parentApi as DashboardContainer).dispatch.setDisableQueryInput(true);
+    (api.parentApi as DashboardContainer).dispatch.setDisableAutoRefresh(true);
 
     /** Handle filters */
     const originalFilters = services.filterManager.getFilters();
@@ -82,12 +83,12 @@ export function SavedSearchEsqlEditor({
       });
 
     return () => {
-      (api.parentApi as DashboardContainer).dispatch.setDisableQueryInput(false);
-
       services.filterManager.setFilters(originalFilters);
       services.timefilter.setTime(originalTime);
 
       (api.parentApi as DashboardContainer).ignoreUnifiedSearch = false;
+      (api.parentApi as DashboardContainer).dispatch.setDisableQueryInput(false);
+      (api.parentApi as DashboardContainer).dispatch.setDisableAutoRefresh(false);
       filtersSubscription.unsubscribe();
       timeRangeSubscription.unsubscribe();
     };

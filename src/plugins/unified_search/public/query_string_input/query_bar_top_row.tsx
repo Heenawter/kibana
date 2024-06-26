@@ -159,6 +159,7 @@ export interface QueryBarTopRowProps<QT extends Query | AggregateQuery = Query> 
   showDatePicker?: boolean;
   isDisabled?: boolean;
   disableQueryInput?: boolean;
+  disableAutoRefresh?: boolean;
   showAutoRefreshOnly?: boolean;
   timeHistory?: TimeHistoryContract;
   timeRangeForSuggestionsOverride?: boolean;
@@ -505,7 +506,7 @@ export const QueryBarTopRow = React.memo(
           refreshInterval={props.refreshInterval}
           onTimeChange={onTimeChange}
           onRefresh={onRefresh}
-          onRefreshChange={props.onRefreshChange}
+          onRefreshChange={props.disableAutoRefresh ? undefined : props.onRefreshChange}
           showUpdateButton={false}
           recentlyUsedRanges={recentlyUsedRanges}
           locale={i18n.getLocale()}

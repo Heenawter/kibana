@@ -58,6 +58,7 @@ export function SavedSearchDataviewEditor({
 
   useEffect(() => {
     (api.parentApi as DashboardContainer).ignoreUnifiedSearch = true;
+    (api.parentApi as DashboardContainer).dispatch.setDisableAutoRefresh(true);
 
     /** Handle query */
     const originalQuery = services.data.query.queryString.getQuery();
@@ -103,6 +104,7 @@ export function SavedSearchDataviewEditor({
       services.timefilter.setTime(originalTime);
 
       (api.parentApi as DashboardContainer).ignoreUnifiedSearch = false;
+      (api.parentApi as DashboardContainer).dispatch.setDisableAutoRefresh(false);
       querySubscription.unsubscribe();
       filtersSubscription.unsubscribe();
       timeRangeSubscription.unsubscribe();

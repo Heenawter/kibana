@@ -246,4 +246,8 @@ export const dashboardContainerReducers = {
   setDisableQueryInput: (state: DashboardReduxState, action: PayloadAction<boolean>) => {
     state.componentState.disableQueryInput = action.payload;
   },
+
+  setDisableAutoRefresh: (state: DashboardReduxState, action: PayloadAction<boolean>) => {
+    state.componentState.disableAutoRefresh = action.payload;
+  },
 };

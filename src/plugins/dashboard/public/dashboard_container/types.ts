@@ -54,6 +54,7 @@ export interface DashboardPublicState {
   focusedPanelId?: string;
 
   disableQueryInput?: boolean;
+  disableAutoRefresh?: boolean;
 }
 
 export type DashboardLoadType =
