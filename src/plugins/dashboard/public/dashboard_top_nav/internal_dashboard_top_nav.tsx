@@ -93,6 +93,7 @@ export function InternalDashboardTopNav({
   const hasRunMigrations = dashboard.select(
     (state) => state.componentState.hasRunClientsideMigrations
   );
+  const disableQueryInput = dashboard.select((state) => state.componentState.disableQueryInput);
   const hasUnsavedChanges = dashboard.select((state) => state.componentState.hasUnsavedChanges);
   const fullScreenMode = dashboard.select((state) => state.componentState.fullScreenMode);
   const savedQueryId = dashboard.select((state) => state.componentState.savedQueryId);
@@ -313,6 +314,7 @@ export function InternalDashboardTopNav({
     return allBadges;
   }, [hasUnsavedChanges, viewMode, hasRunMigrations, showWriteControls, managed]);
 
+  console.log('dashboard.disableQueryInput', dashboard.disableQueryInput);
   return (
     <div className="dashboardTopNav">
       <h1
@@ -323,7 +325,7 @@ export function InternalDashboardTopNav({
       >{`${getDashboardBreadcrumb()} - ${dashboardTitle}`}</h1>
       <TopNavMenu
         {...visibilityProps}
-        // isDisabled={true}
+        // isDisabled={dashboard.ignoreUnifiedSearch}
         query={query}
         badges={badges}
         screenTitle={title}
@@ -338,6 +340,7 @@ export function InternalDashboardTopNav({
             ? setCustomHeaderActionMenu ?? undefined
             : setHeaderActionMenu
         }
+        disableQueryInput={disableQueryInput}
         className={fullScreenMode ? 'kbnTopNavMenu-isFullScreen' : undefined}
         config={
           visibilityProps.showTopNavMenu

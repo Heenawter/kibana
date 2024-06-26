@@ -158,6 +158,7 @@ export interface QueryBarTopRowProps<QT extends Query | AggregateQuery = Query> 
   showAddFilter?: boolean;
   showDatePicker?: boolean;
   isDisabled?: boolean;
+  disableQueryInput?: boolean;
   showAutoRefreshOnly?: boolean;
   timeHistory?: TimeHistoryContract;
   timeRangeForSuggestionsOverride?: boolean;
@@ -700,7 +701,7 @@ export const QueryBarTopRow = React.memo(
                 prepend={renderFilterMenuOnly() && renderFilterButtonGroup()}
                 size={props.suggestionsSize}
                 suggestionsAbstraction={props.suggestionsAbstraction}
-                isDisabled={props.isDisabled}
+                isDisabled={props.isDisabled || props.disableQueryInput}
                 appName={appName}
                 submitOnBlur={props.submitOnBlur}
                 deps={{

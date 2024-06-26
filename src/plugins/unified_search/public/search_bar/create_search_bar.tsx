@@ -43,6 +43,7 @@ export type StatefulSearchBarProps<QT extends Query | AggregateQuery = Query> = 
   saveQueryMenuVisibility?: SavedQueryMenuVisibility;
   onSavedQueryIdChange?: (savedQueryId?: string) => void;
   onFiltersUpdated?: (filters: Filter[]) => void;
+  disableQueryInput?: boolean;
 };
 
 // Respond to user changing the filters
@@ -157,6 +158,7 @@ export function createSearchBar({
     const { useDefaultBehaviors } = props;
     // Handle queries
     const onQuerySubmitRef = useRef(props.onQuerySubmit);
+    console.log('test', props.disableQueryInput);
 
     useEffect(() => {
       onQuerySubmitRef.current = props.onQuerySubmit;
@@ -226,6 +228,7 @@ export function createSearchBar({
             showSubmitButton={props.showSubmitButton}
             submitButtonStyle={props.submitButtonStyle}
             isDisabled={props.isDisabled}
+            disableQueryInput={props.disableQueryInput}
             screenTitle={props.screenTitle}
             indexPatterns={props.indexPatterns}
             indicateNoData={props.indicateNoData}

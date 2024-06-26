@@ -242,4 +242,8 @@ export const dashboardContainerReducers = {
   ) => {
     state.componentState.animatePanelTransforms = action.payload;
   },
+
+  setDisableQueryInput: (state: DashboardReduxState, action: PayloadAction<boolean>) => {
+    state.componentState.disableQueryInput = action.payload;
+  },
 };

@@ -87,6 +87,7 @@ export const openSavedSearchEditFlyout = async ({
           onClose: onCancel,
           paddingSize: 'm',
           hideCloseButton: true,
+          pushMinBreakpoint: 'xs', // TODO: Better handling of overlay mode
           className: 'lnsConfigPanel__overlay savedSearchFlyout',
         }
       );

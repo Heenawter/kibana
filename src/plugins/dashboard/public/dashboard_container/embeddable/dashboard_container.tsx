@@ -174,6 +174,7 @@ export class DashboardContainer
   public firstLoad: boolean = true;
   private hadContentfulRender = false;
   private scrollPosition?: number;
+
   public ignoreUnifiedSearch: boolean = false;
 
   // cleanup

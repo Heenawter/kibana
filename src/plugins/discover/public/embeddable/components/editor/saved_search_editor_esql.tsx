@@ -6,17 +6,18 @@
  * Side Public License, v 1.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { EuiPanel, EuiSpacer } from '@elastic/eui';
+import { DashboardContainer } from '@kbn/dashboard-plugin/public/dashboard_container';
+import { AggregateQuery, isOfAggregateQueryType } from '@kbn/es-query';
 import { useBatchedPublishingSubjects } from '@kbn/presentation-publishing';
+import { TextBasedLangEditor } from '@kbn/text-based-languages/public';
 import {
   UnifiedFieldListSidebarContainer,
   type UnifiedFieldListSidebarContainerProps,
 } from '@kbn/unified-field-list';
 
-import { EuiPanel, EuiSpacer } from '@elastic/eui';
-import { AggregateQuery, isOfAggregateQueryType } from '@kbn/es-query';
-import { TextBasedLangEditor } from '@kbn/text-based-languages/public';
 import { useDiscoverServices } from '../../../hooks/use_discover_services';
 import { SearchEmbeddableApi, SearchEmbeddableStateManager } from '../../types';
 
@@ -46,6 +47,14 @@ export function SavedSearchEsqlEditor({
     savedSearch.searchSource.getField('query') as AggregateQuery
   );
   const prevQuery = useRef<AggregateQuery>(query);
+
+  useEffect(() => {
+    (api.parentApi as DashboardContainer).dispatch.setDisableQueryInput(true);
+    return () => {
+      (api.parentApi as DashboardContainer).dispatch.setDisableQueryInput(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const dataView = useMemo(() => {
     return savedSearch.searchSource.getField('index');
