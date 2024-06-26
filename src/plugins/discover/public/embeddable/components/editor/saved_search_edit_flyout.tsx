@@ -89,9 +89,9 @@ export default function SavedSearchEditorFlyout({
       </EuiFlyoutHeader>
       <EuiFlyoutBody>
         {isEsql ? (
-          <SavedSearchEsqlEditor api={api} stateManager={stateManager} services={services} />
+          <SavedSearchEsqlEditor api={api} stateManager={stateManager} />
         ) : (
-          <SavedSearchDataviewEditor api={api} stateManager={stateManager} services={services} />
+          <SavedSearchDataviewEditor api={api} stateManager={stateManager} />
         )}
       </EuiFlyoutBody>
       <EuiFlyoutFooter>

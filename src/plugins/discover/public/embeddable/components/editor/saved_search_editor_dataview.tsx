@@ -7,9 +7,12 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { debounceTime } from 'rxjs';
 
-import { EuiPanel, EuiSpacer } from '@elastic/eui';
+import { EuiPanel } from '@elastic/eui';
+import { DashboardContainer } from '@kbn/dashboard-plugin/public/dashboard_container';
 import { DataViewListItem } from '@kbn/data-views-plugin/common';
+import { Filter, Query } from '@kbn/es-query';
 import { i18n } from '@kbn/i18n';
 import { useBatchedPublishingSubjects } from '@kbn/presentation-publishing';
 import { LazyDataViewPicker, withSuspense } from '@kbn/presentation-util-plugin/public';
@@ -54,6 +57,41 @@ export function SavedSearchDataviewEditor({
   const [dataViews, setDataViews] = useState<DataViewListItem[]>([]);
 
   useEffect(() => {
+    (api.parentApi as DashboardContainer).ignoreDashboardUnsavedChanges = true;
+
+    const originalQuery = services.data.query.queryString.getQuery();
+    services.data.query.queryString.setQuery(savedSearch.searchSource.getField('query') as Query);
+    const querySubscription = services.data.query.queryString
+      .getUpdates$()
+      .pipe(debounceTime(1))
+      .subscribe((newQuery) => {
+        stateManager.searchSource.next(savedSearch.searchSource.setField('query', newQuery));
+      });
+
+    const originalFilters = services.filterManager.getFilters();
+    services.filterManager.setFilters(
+      (savedSearch.searchSource.getField('filter') ?? []) as Filter[]
+    );
+    const filtersSubscription = services.filterManager
+      .getUpdates$()
+      .pipe(debounceTime(1))
+      .subscribe(() => {
+        const newFilters = services.filterManager.getFilters();
+        stateManager.searchSource.next(savedSearch.searchSource.setField('filter', newFilters));
+      });
+
+    return () => {
+      services.data.query.queryString.setQuery(originalQuery);
+      services.filterManager.setFilters(originalFilters);
+
+      (api.parentApi as DashboardContainer).ignoreDashboardUnsavedChanges = false;
+      querySubscription.unsubscribe();
+      filtersSubscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
     const fetchDataViews = async () => {
       const dataViewListItems = await services.data.dataViews.getIdsWithTitle();
@@ -96,7 +134,7 @@ export function SavedSearchDataviewEditor({
           }}
         />
 
-        {selectedDataView ? (
+        {selectedDataView && (
           <UnifiedFieldListSidebarContainer
             fullWidth
             variant="responsive"
@@ -113,13 +151,7 @@ export function SavedSearchDataviewEditor({
               stateManager.columns.next((columns ?? []).filter((name) => name !== field.name));
             }}
           />
-        ) : (
-          <>error</>
         )}
-      </EuiPanel>
-      <EuiSpacer size="m" />
-      <EuiPanel className="editorPanel" paddingSize="s">
-        test
       </EuiPanel>
     </>
   );
