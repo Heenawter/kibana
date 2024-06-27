@@ -6,7 +6,7 @@
  * Side Public License, v 1.
  */
 
-import { omit, pick } from 'lodash';
+import { pick } from 'lodash';
 
 import { EmbeddableStateWithType } from '@kbn/embeddable-plugin/common';
 import { SerializedPanelState } from '@kbn/presentation-containers';
@@ -20,11 +20,7 @@ import { SavedSearchUnwrapResult } from '@kbn/saved-search-plugin/public';
 
 import { extract, inject } from '../../../common/embeddable/search_inject_extract';
 import { DiscoverServices } from '../../build_services';
-import {
-  EDITABLE_PANEL_KEYS,
-  EDITABLE_SAVED_SEARCH_KEYS,
-  SEARCH_EMBEDDABLE_TYPE,
-} from '../constants';
+import { EDITABLE_PANEL_KEYS, SEARCH_EMBEDDABLE_TYPE } from '../constants';
 import { SearchEmbeddableRuntimeState, SearchEmbeddableSerializedState } from '../types';
 
 export const deserializeState = async ({
@@ -40,7 +36,6 @@ export const deserializeState = async ({
     // by reference
     const { get } = discoverServices.savedSearch;
     const so = await get(savedObjectId, true);
-    const savedObjectOverride = pick(serializedState.rawState, EDITABLE_SAVED_SEARCH_KEYS);
     return {
       ...so,
       savedObjectId,
@@ -48,7 +43,6 @@ export const deserializeState = async ({
       savedObjectDescription: so.description,
       // Overwrite SO state with dashboard state for title, description, columns, sort, etc.
       ...panelState,
-      ...savedObjectOverride,
     };
   } else {
     // by value
@@ -91,9 +85,7 @@ export const serializeState = ({
     return {
       rawState: {
         savedObjectId,
-        // Serialize the current dashboard state into the panel state **without** updating the saved object
         ...serializeTitles(),
-        ...serializeTimeRange(),
       },
       // No references to extract for by-reference embeddable since all references are stored with by-reference saved object
       references: [],

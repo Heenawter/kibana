@@ -8,7 +8,6 @@
 
 import type { SavedObjectReference } from '@kbn/core-saved-objects-server';
 import { SerializedSearchSourceFields } from '@kbn/data-plugin/common';
-import { pick } from 'lodash';
 import type { SavedSearch, SavedSearchAttributes } from '..';
 import { fromSavedSearchAttributes as fromSavedSearchAttributesCommon } from '..';
 import { SerializableSavedSearch } from '../types';
@@ -48,7 +47,7 @@ export const toSavedSearchAttributes = (
   isTextBasedQuery: savedSearch.isTextBasedQuery ?? false,
   usesAdHocDataView: savedSearch.usesAdHocDataView,
   timeRestore: savedSearch.timeRestore ?? false,
-  timeRange: savedSearch.timeRange ? pick(savedSearch.timeRange, ['from', 'to']) : undefined,
+  timeRange: savedSearch.timeRange,
   refreshInterval: savedSearch.refreshInterval,
   rowsPerPage: savedSearch.rowsPerPage,
   sampleSize: savedSearch.sampleSize,

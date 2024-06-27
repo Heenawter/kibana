@@ -28,6 +28,14 @@ export const saveSearchSavedObject = async (
   references: Reference[] | undefined,
   contentManagement: ContentManagementPublicStart['client']
 ) => {
+  const definedAttributes = Object.keys(attributes).reduce(
+    (prev: SavedSearchAttributes, key: string) => {
+      return attributes[key as keyof SavedSearchAttributes] || key === 'description'
+        ? { ...prev, [key]: attributes[key as keyof SavedSearchAttributes] }
+        : prev;
+    },
+    {} as SavedSearchAttributes
+  );
   const resp = id
     ? await contentManagement.update<
         SavedSearchCrudTypes['UpdateIn'],
@@ -35,9 +43,10 @@ export const saveSearchSavedObject = async (
       >({
         contentTypeId: SAVED_SEARCH_TYPE,
         id,
-        data: attributes,
+        data: definedAttributes,
         options: {
           references,
+          mergeAttributes: false,
         },
       })
     : await contentManagement.create<
@@ -50,7 +59,6 @@ export const saveSearchSavedObject = async (
           references,
         },
       });
-
   return resp.item.id;
 };
 

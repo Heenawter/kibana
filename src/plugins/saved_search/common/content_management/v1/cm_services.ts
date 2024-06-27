@@ -110,6 +110,7 @@ const savedSearchCreateOptionsSchema = schema.maybe(
 const savedSearchUpdateOptionsSchema = schema.maybe(
   schema.object({
     references: updateOptionsSchema.references,
+    mergeAttributes: updateOptionsSchema.mergeAttributes,
   })
 );
 const savedSearchSearchOptionsSchema = schema.maybe(

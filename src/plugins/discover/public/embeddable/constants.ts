@@ -37,5 +37,4 @@ export const EDITABLE_SAVED_SEARCH_KEYS: Readonly<
 export const EDITABLE_PANEL_KEYS = [
   'title', // panel title
   'description', // panel description
-  'timeRange', // panel custom time range
 ] as const;

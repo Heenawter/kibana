@@ -162,11 +162,10 @@ export const getSearchEmbeddableFactory = ({
           serializeState: async () => {
             const savedObjectId = savedObjectId$.getValue();
             const updatedSavedSearch = searchEmbeddable.api.savedSearch$.getValue();
-            console.log('timeRange.serialize()', timeRange.serialize());
             if (savedObjectId && api.unsavedChanges.getValue()) {
               // update the saved object **only** if something changed
               await save({
-                ...updatedSavedSearch,
+                ...omit(updatedSavedSearch, 'timeRange'),
                 ...timeRange.serialize(),
                 id: savedObjectId,
                 title: defaultPanelTitle$.getValue(),
