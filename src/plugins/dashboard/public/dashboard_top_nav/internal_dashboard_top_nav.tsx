@@ -95,6 +95,7 @@ export function InternalDashboardTopNav({
   );
   const disableQueryInput = dashboard.select((state) => state.componentState.disableQueryInput);
   const disableAutoRefresh = dashboard.select((state) => state.componentState.disableAutoRefresh);
+  const disableFilters = dashboard.select((state) => state.componentState.disableFilters);
   const hasUnsavedChanges = dashboard.select((state) => state.componentState.hasUnsavedChanges);
   const fullScreenMode = dashboard.select((state) => state.componentState.fullScreenMode);
   const savedQueryId = dashboard.select((state) => state.componentState.savedQueryId);
@@ -341,6 +342,7 @@ export function InternalDashboardTopNav({
             : setHeaderActionMenu
         }
         disableQueryInput={disableQueryInput}
+        showFilterBar={!disableFilters}
         disableAutoRefresh={disableAutoRefresh}
         className={fullScreenMode ? 'kbnTopNavMenu-isFullScreen' : undefined}
         config={

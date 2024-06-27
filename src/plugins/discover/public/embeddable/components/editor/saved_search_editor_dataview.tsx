@@ -7,6 +7,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import deepEqual from 'react-fast-compare';
 import { debounceTime } from 'rxjs';
 
 import { EuiPanel } from '@elastic/eui';
@@ -97,7 +98,7 @@ export function SavedSearchDataviewEditor({
       .pipe(debounceTime(1))
       .subscribe(() => {
         const newTimeRange = services.timefilter.getTime();
-        api.setTimeRange(newTimeRange);
+        api.setTimeRange(deepEqual(originalTime, newTimeRange) ? undefined : newTimeRange);
       });
 
     return () => {

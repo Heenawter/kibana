@@ -250,4 +250,8 @@ export const dashboardContainerReducers = {
   setDisableAutoRefresh: (state: DashboardReduxState, action: PayloadAction<boolean>) => {
     state.componentState.disableAutoRefresh = action.payload;
   },
+
+  setDisableFilters: (state: DashboardReduxState, action: PayloadAction<boolean>) => {
+    state.componentState.disableFilters = action.payload;
+  },
 };

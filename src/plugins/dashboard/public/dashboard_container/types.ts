@@ -55,6 +55,7 @@ export interface DashboardPublicState {
 
   disableQueryInput?: boolean;
   disableAutoRefresh?: boolean;
+  disableFilters?: boolean;
 }
 
 export type DashboardLoadType =

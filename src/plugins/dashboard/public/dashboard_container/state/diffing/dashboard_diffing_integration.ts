@@ -32,6 +32,7 @@ export const reducersToIgnore: Array<keyof typeof dashboardContainerReducers> = 
   'setHasUnsavedChanges',
   'setDisableQueryInput',
   'setDisableAutoRefresh',
+  'setDisableFilters',
 ];
 
 /**

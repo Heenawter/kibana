@@ -7,11 +7,12 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import deepEqual from 'react-fast-compare';
 import { debounceTime } from 'rxjs';
 
 import { EuiPanel, EuiSpacer } from '@elastic/eui';
 import { DashboardContainer } from '@kbn/dashboard-plugin/public/dashboard_container';
-import { AggregateQuery, Filter, isOfAggregateQueryType } from '@kbn/es-query';
+import { AggregateQuery, isOfAggregateQueryType } from '@kbn/es-query';
 import { useBatchedPublishingSubjects } from '@kbn/presentation-publishing';
 import { TextBasedLangEditor } from '@kbn/text-based-languages/public';
 import {
@@ -58,20 +59,7 @@ export function SavedSearchEsqlEditor({
     (api.parentApi as DashboardContainer).ignoreUnifiedSearch = true;
     (api.parentApi as DashboardContainer).dispatch.setDisableQueryInput(true);
     (api.parentApi as DashboardContainer).dispatch.setDisableAutoRefresh(true);
-
-    /** Handle filters */
-    const originalFilters = services.filterManager.getFilters();
-    const customFilters = (savedSearch.searchSource.getOwnField('filter') ?? []) as Filter[];
-    if (customFilters.length > 0) {
-      services.filterManager.setFilters(customFilters);
-    }
-    const filtersSubscription = services.filterManager
-      .getUpdates$()
-      .pipe(debounceTime(1))
-      .subscribe(() => {
-        const newFilters = services.filterManager.getFilters();
-        stateManager.searchSource.next(savedSearch.searchSource.setField('filter', newFilters));
-      });
+    (api.parentApi as DashboardContainer).dispatch.setDisableFilters(true);
 
     /** Handle time range */
     const originalTime = services.timefilter.getTime();
@@ -84,17 +72,16 @@ export function SavedSearchEsqlEditor({
       .pipe(debounceTime(1))
       .subscribe(() => {
         const newTimeRange = services.timefilter.getTime();
-        api.setTimeRange(newTimeRange);
+        api.setTimeRange(deepEqual(originalTime, newTimeRange) ? undefined : newTimeRange);
       });
 
     return () => {
-      services.filterManager.setFilters(originalFilters);
       services.timefilter.setTime(originalTime);
 
       (api.parentApi as DashboardContainer).ignoreUnifiedSearch = false;
       (api.parentApi as DashboardContainer).dispatch.setDisableQueryInput(false);
       (api.parentApi as DashboardContainer).dispatch.setDisableAutoRefresh(false);
-      filtersSubscription.unsubscribe();
+      (api.parentApi as DashboardContainer).dispatch.setDisableFilters(false);
       timeRangeSubscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
