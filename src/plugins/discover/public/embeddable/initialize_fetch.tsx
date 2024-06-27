@@ -46,7 +46,7 @@ type SavedSearchPrivateFetchApi = SearchEmbeddableApi & {
 };
 
 export const isEsqlMode = (savedSearch: Pick<SavedSearch, 'searchSource'>): boolean => {
-  const query = savedSearch.searchSource.getField('query');
+  const query = savedSearch.searchSource.getOwnField('query');
   return isOfAggregateQueryType(query);
 };
 
@@ -112,7 +112,7 @@ export function initializeFetch({
         );
 
         const searchSessionId = fetchContext.searchSessionId;
-        const searchSourceQuery = savedSearch.searchSource.getField('query');
+        const searchSourceQuery = savedSearch.searchSource.getOwnField('query');
 
         try {
           api.dataLoading.next(true);

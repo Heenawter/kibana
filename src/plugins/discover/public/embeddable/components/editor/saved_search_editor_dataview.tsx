@@ -62,7 +62,9 @@ export function SavedSearchDataviewEditor({
 
     /** Handle query */
     const originalQuery = services.data.query.queryString.getQuery();
-    services.data.query.queryString.setQuery(savedSearch.searchSource.getField('query') as Query);
+    services.data.query.queryString.setQuery(
+      savedSearch.searchSource.getOwnField('query') as Query
+    );
     const querySubscription = services.data.query.queryString
       .getUpdates$()
       .pipe(debounceTime(1))
@@ -72,7 +74,7 @@ export function SavedSearchDataviewEditor({
 
     /** Handle filters */
     const originalFilters = services.filterManager.getFilters();
-    const customFilters = (savedSearch.searchSource.getField('filter') ?? []) as Filter[];
+    const customFilters = (savedSearch.searchSource.getOwnField('filter') ?? []) as Filter[];
     if (customFilters.length > 0) {
       services.filterManager.setFilters(customFilters);
     }

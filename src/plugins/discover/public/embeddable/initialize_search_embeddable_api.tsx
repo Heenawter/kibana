@@ -177,8 +177,8 @@ export const initializeSearchEmbeddableApi = async (
       if (newDataView) {
         newSavedSearch.searchSource.setField('index', newDataView);
       }
-      filters$.next(newSavedSearch.searchSource.getField('filter') as Filter[]);
-      query$.next(newSavedSearch.searchSource.getField('query'));
+      filters$.next(newSavedSearch.searchSource.getOwnField('filter') as Filter[]);
+      query$.next(newSavedSearch.searchSource.getOwnField('query'));
       savedSearch$.next(newSavedSearch);
     });
 

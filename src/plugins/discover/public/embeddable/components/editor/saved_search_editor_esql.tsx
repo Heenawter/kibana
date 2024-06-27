@@ -50,7 +50,7 @@ export function SavedSearchEsqlEditor({
     stateManager.esqlQueryColumns
   );
   const [query, setQuery] = useState<AggregateQuery>(
-    savedSearch.searchSource.getField('query') as AggregateQuery
+    savedSearch.searchSource.getOwnField('query') as AggregateQuery
   );
   const prevQuery = useRef<AggregateQuery>(query);
 
@@ -61,7 +61,7 @@ export function SavedSearchEsqlEditor({
 
     /** Handle filters */
     const originalFilters = services.filterManager.getFilters();
-    const customFilters = (savedSearch.searchSource.getField('filter') ?? []) as Filter[];
+    const customFilters = (savedSearch.searchSource.getOwnField('filter') ?? []) as Filter[];
     if (customFilters.length > 0) {
       services.filterManager.setFilters(customFilters);
     }
