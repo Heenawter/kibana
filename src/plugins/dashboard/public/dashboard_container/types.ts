@@ -52,6 +52,10 @@ export interface DashboardPublicState {
   scrollToPanelId?: string;
   highlightPanelId?: string;
   focusedPanelId?: string;
+
+  disableQueryInput?: boolean;
+  disableAutoRefresh?: boolean;
+  disableFilters?: boolean;
 }
 
 export type DashboardLoadType =

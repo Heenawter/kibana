@@ -6,7 +6,7 @@
  * Side Public License, v 1.
  */
 
-import { BehaviorSubject, combineLatest, lastValueFrom, switchMap } from 'rxjs';
+import { BehaviorSubject, combineLatest, debounceTime, lastValueFrom, switchMap } from 'rxjs';
 
 import { KibanaExecutionContext } from '@kbn/core/types';
 import {
@@ -24,12 +24,7 @@ import {
   apiHasParentApi,
   fetch$,
   FetchContext,
-  HasParentApi,
-  PublishesDataViews,
-  PublishesPanelTitle,
-  PublishesSavedObjectId,
 } from '@kbn/presentation-publishing';
-import { PublishesWritableTimeRange } from '@kbn/presentation-publishing/interfaces/fetch/publishes_unified_search';
 import { SavedSearch } from '@kbn/saved-search-plugin/public';
 import { SearchResponseWarning } from '@kbn/search-response-warnings';
 import { SearchResponseIncompleteWarning } from '@kbn/search-response-warnings/src/types';
@@ -40,27 +35,23 @@ import { fetchEsql } from '../application/main/data_fetching/fetch_esql';
 import { DiscoverServices } from '../build_services';
 import { getAllowedSampleSize } from '../utils/get_allowed_sample_size';
 import { getAppTarget } from './initialize_edit_api';
-import { PublishesSavedSearch, SearchEmbeddableStateManager } from './types';
+import { SearchEmbeddableApi, SearchEmbeddableStateManager } from './types';
 import { getTimeRangeFromFetchContext, updateSearchSource } from './utils/update_search_source';
 
-type SavedSearchPartialFetchApi = PublishesSavedSearch &
-  PublishesSavedObjectId &
-  PublishesDataViews &
-  PublishesPanelTitle &
-  PublishesWritableTimeRange & {
-    fetchContext$: BehaviorSubject<FetchContext | undefined>;
-    dataLoading: BehaviorSubject<boolean | undefined>;
-    blockingError: BehaviorSubject<Error | undefined>;
-    fetchWarnings$: BehaviorSubject<SearchResponseIncompleteWarning[]>;
-  } & HasParentApi;
+type SavedSearchPrivateFetchApi = SearchEmbeddableApi & {
+  fetchContext$: BehaviorSubject<FetchContext | undefined>;
+  dataLoading: BehaviorSubject<boolean | undefined>;
+  blockingError: BehaviorSubject<Error | undefined>;
+  fetchWarnings$: BehaviorSubject<SearchResponseIncompleteWarning[]>;
+};
 
 export const isEsqlMode = (savedSearch: Pick<SavedSearch, 'searchSource'>): boolean => {
-  const query = savedSearch.searchSource.getField('query');
+  const query = savedSearch.searchSource.getOwnField('query');
   return isOfAggregateQueryType(query);
 };
 
 const getExecutionContext = async (
-  api: SavedSearchPartialFetchApi,
+  api: SavedSearchPrivateFetchApi,
   discoverServices: DiscoverServices
 ) => {
   const { editUrl } = await getAppTarget(api, discoverServices);
@@ -86,17 +77,18 @@ export function initializeFetch({
   stateManager,
   discoverServices,
 }: {
-  api: SavedSearchPartialFetchApi;
+  api: SavedSearchPrivateFetchApi;
   stateManager: SearchEmbeddableStateManager;
   discoverServices: DiscoverServices;
 }) {
   const requestAdapter = new RequestAdapter();
   let abortController = new AbortController();
 
-  const fetchSubscription = combineLatest([fetch$(api), api.savedSearch$, api.dataViews])
+  const fetchSubscription = combineLatest([fetch$(api), api.savedSearch$])
     .pipe(
-      switchMap(async ([fetchContext, savedSearch, dataViews]) => {
-        const dataView = dataViews?.length ? dataViews[0] : undefined;
+      debounceTime(1),
+      switchMap(async ([fetchContext, savedSearch]) => {
+        const dataView = savedSearch.searchSource.getField('index');
         api.blockingError.next(undefined);
         if (!dataView || !savedSearch.searchSource) {
           return;
@@ -120,7 +112,7 @@ export function initializeFetch({
         );
 
         const searchSessionId = fetchContext.searchSessionId;
-        const searchSourceQuery = savedSearch.searchSource.getField('query');
+        const searchSourceQuery = savedSearch.searchSource.getOwnField('query');
 
         try {
           api.dataLoading.next(true);
@@ -163,6 +155,7 @@ export function initializeFetch({
               rows: result.records,
               hitCount: result.records.length,
               fetchContext,
+              esqlQueryColumns: result.esqlQueryColumns,
             };
           }
 
@@ -218,8 +211,13 @@ export function initializeFetch({
       stateManager.totalHitCount.next(next.hitCount);
       api.fetchWarnings$.next(next.warnings ?? []);
       api.fetchContext$.next(next.fetchContext);
+
+      /** ESQL stuff */
       if (next.hasOwnProperty('columnsMeta')) {
         stateManager.columnsMeta.next(next.columnsMeta);
+      }
+      if (next.hasOwnProperty('esqlQueryColumns')) {
+        stateManager.esqlQueryColumns.next(next.esqlQueryColumns);
       }
     });
 

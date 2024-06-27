@@ -59,6 +59,7 @@ import {
   RootProfileService,
 } from './context_awareness';
 import { DiscoverSetup, DiscoverSetupPlugins, DiscoverStart, DiscoverStartPlugins } from './types';
+import { registerCreateSavedSearchAction } from './embeddable/actions/create_saved_search_action';
 
 /**
  * Contains Discover, one of the oldest parts of Kibana
@@ -285,6 +286,8 @@ export class DiscoverPlugin
     const getDiscoverServicesInternal = () => {
       return this.getDiscoverServices(core, plugins, this.createEmptyProfilesManager());
     };
+
+    registerCreateSavedSearchAction(getDiscoverServicesInternal());
 
     return {
       locator: this.locator,

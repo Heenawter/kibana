@@ -6,8 +6,10 @@
  * Side Public License, v 1.
  */
 
+import { ISearchSource } from '@kbn/data-plugin/common';
 import { DataTableRecord } from '@kbn/discover-utils/types';
 import type { DefaultEmbeddableApi } from '@kbn/embeddable-plugin/public';
+import { DatatableColumn } from '@kbn/expressions-plugin/common';
 import {
   EmbeddableApiContext,
   HasEditCapabilities,
@@ -16,10 +18,12 @@ import {
   PublishesDataLoading,
   PublishesDataViews,
   PublishesSavedObjectId,
+  PublishesUnifiedSearch,
   PublishingSubject,
   SerializedTimeRange,
   SerializedTitles,
 } from '@kbn/presentation-publishing';
+import { PublishesWritableTimeRange } from '@kbn/presentation-publishing/interfaces/fetch/publishes_unified_search';
 import {
   SavedSearch,
   SavedSearchAttributes,
@@ -31,27 +35,23 @@ import { EDITABLE_SAVED_SEARCH_KEYS } from './constants';
 
 export type SearchEmbeddableState = Pick<
   SerializableSavedSearch,
-  | 'rowHeight'
-  | 'rowsPerPage'
-  | 'headerRowHeight'
-  | 'columns'
-  | 'sort'
-  | 'sampleSize'
-  | 'breakdownField'
-  | 'viewMode'
+  typeof EDITABLE_SAVED_SEARCH_KEYS[number] | 'breakdownField' | 'viewMode'
 > & {
   rows: DataTableRecord[];
   columnsMeta: DataTableColumnsMeta | undefined;
   totalHitCount: number | undefined;
+  esqlQueryColumns: DatatableColumn[] | undefined;
 };
 
 export type SearchEmbeddableStateManager = {
   [key in keyof Required<SearchEmbeddableState>]: BehaviorSubject<SearchEmbeddableState[key]>;
+} & {
+  searchSource: BehaviorSubject<ISearchSource>;
 };
 
 export type SearchEmbeddableSerializedAttributes = Omit<
   SearchEmbeddableState,
-  'rows' | 'columnsMeta' | 'totalHitCount' | 'searchSource'
+  'rows' | 'columnsMeta' | 'totalHitCount' | 'searchSource' | 'esqlQueryColumns'
 > &
   Pick<SerializableSavedSearch, 'serializedSearchSource'>;
 
@@ -59,7 +59,7 @@ export type SearchEmbeddableSerializedState = SerializedTitles &
   SerializedTimeRange &
   Partial<Pick<SavedSearchAttributes, typeof EDITABLE_SAVED_SEARCH_KEYS[number]>> & {
     // by value
-    attributes?: SavedSearchAttributes & { references: SavedSearch['references'] };
+    attributes?: Partial<SavedSearchAttributes> & { references: SavedSearch['references'] };
     // by reference
     savedObjectId?: string;
   };
@@ -84,7 +84,11 @@ export type SearchEmbeddableApi = DefaultEmbeddableApi<
   PublishesDataViews &
   HasInPlaceLibraryTransforms &
   HasTimeRange &
-  Partial<HasEditCapabilities & PublishesSavedObjectId>;
+  PublishesWritableTimeRange &
+  Partial<HasEditCapabilities & PublishesSavedObjectId & PublishesUnifiedSearch> & {
+    // PublishesUnifiedSearch represents the parts of the search source that should be exposed
+    getStateManager: () => SearchEmbeddableStateManager; // probably not best to expose this but makes creation easier ¯\_(ツ)_/¯
+  };
 
 export interface PublishesSavedSearch {
   savedSearch$: PublishingSubject<SavedSearch>;

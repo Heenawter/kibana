@@ -43,6 +43,8 @@ export type StatefulSearchBarProps<QT extends Query | AggregateQuery = Query> = 
   saveQueryMenuVisibility?: SavedQueryMenuVisibility;
   onSavedQueryIdChange?: (savedQueryId?: string) => void;
   onFiltersUpdated?: (filters: Filter[]) => void;
+  disableQueryInput?: boolean;
+  disableAutoRefresh?: boolean;
 };
 
 // Respond to user changing the filters
@@ -226,6 +228,8 @@ export function createSearchBar({
             showSubmitButton={props.showSubmitButton}
             submitButtonStyle={props.submitButtonStyle}
             isDisabled={props.isDisabled}
+            disableQueryInput={props.disableQueryInput}
+            disableAutoRefresh={props.disableAutoRefresh}
             screenTitle={props.screenTitle}
             indexPatterns={props.indexPatterns}
             indicateNoData={props.indicateNoData}

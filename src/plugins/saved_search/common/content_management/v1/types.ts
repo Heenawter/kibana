@@ -23,6 +23,7 @@ interface SavedSearchCreateOptions {
 
 interface SavedSearchUpdateOptions {
   references?: SavedObjectUpdateOptions['references'];
+  mergeAttributes?: SavedObjectUpdateOptions['mergeAttributes'];
 }
 
 interface SavedSearchSearchOptions {

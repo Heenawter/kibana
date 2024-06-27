@@ -90,22 +90,6 @@ export const getSearchEmbeddableFactory = ({
       const searchEmbeddable = await initializeSearchEmbeddableApi(initialState, {
         discoverServices,
       });
-      const unsubscribeFromFetch = initializeFetch({
-        api: {
-          parentApi,
-          ...titlesApi,
-          ...timeRange.api,
-          savedSearch$: searchEmbeddable.api.savedSearch$,
-          dataViews: searchEmbeddable.api.dataViews,
-          savedObjectId: savedObjectId$,
-          dataLoading: dataLoading$,
-          blockingError: blockingError$,
-          fetchContext$,
-          fetchWarnings$,
-        },
-        discoverServices,
-        stateManager: searchEmbeddable.stateManager,
-      });
 
       const api: SearchEmbeddableApi = buildApi(
         {
@@ -115,9 +99,9 @@ export const getSearchEmbeddableFactory = ({
           ...initializeEditApi({
             uuid,
             parentApi,
-            partialApi: { ...searchEmbeddable.api, fetchContext$, savedObjectId: savedObjectId$ },
             discoverServices,
             isEditable: startServices.isEditable,
+            getApi: () => ({ ...api, fetchContext$ }),
           }),
           dataLoading: dataLoading$,
           blockingError: blockingError$,
@@ -133,6 +117,7 @@ export const getSearchEmbeddableFactory = ({
               serializedSearchSource: savedSearch.searchSource.getSerializedFields(),
             };
           },
+          getStateManager: () => searchEmbeddable.stateManager,
           hasTimeRange: () => {
             const fetchContext = fetchContext$.getValue();
             return fetchContext?.timeslice !== undefined || fetchContext?.timeRange !== undefined;
@@ -174,15 +159,27 @@ export const getSearchEmbeddableFactory = ({
             defaultPanelTitle$.next(undefined);
             defaultPanelDescription$.next(undefined);
           },
-          serializeState: () =>
-            serializeState({
+          serializeState: async () => {
+            const savedObjectId = savedObjectId$.getValue();
+            const updatedSavedSearch = searchEmbeddable.api.savedSearch$.getValue();
+            if (savedObjectId && api.unsavedChanges.getValue()) {
+              // update the saved object **only** if something changed
+              await save({
+                ...omit(updatedSavedSearch, 'timeRange'),
+                ...timeRange.serialize(),
+                id: savedObjectId,
+                title: defaultPanelTitle$.getValue(),
+              });
+            }
+            return serializeState({
               uuid,
               initialState,
               savedSearch: searchEmbeddable.api.savedSearch$.getValue(),
               serializeTitles,
               serializeTimeRange: timeRange.serialize,
               savedObjectId: savedObjectId$.getValue(),
-            }),
+            });
+          },
         },
         {
           ...titleComparators,
@@ -197,13 +194,22 @@ export const getSearchEmbeddableFactory = ({
         }
       );
 
+      const unsubscribeFromFetch = initializeFetch({
+        api: {
+          ...api,
+          blockingError: blockingError$,
+          dataLoading: dataLoading$,
+          fetchContext$,
+          fetchWarnings$,
+        },
+        discoverServices,
+        stateManager: searchEmbeddable.stateManager,
+      });
+
       return {
         api,
         Component: () => {
-          const [savedSearch, dataViews] = useBatchedPublishingSubjects(
-            api.savedSearch$,
-            api.dataViews
-          );
+          const [savedSearch] = useBatchedPublishingSubjects(api.savedSearch$);
 
           useEffect(() => {
             return () => {
@@ -220,29 +226,9 @@ export const getSearchEmbeddableFactory = ({
             });
           }, [savedSearch]);
 
-          const dataView = useMemo(() => {
-            const hasDataView = (dataViews ?? []).length > 0;
-            if (!hasDataView) {
-              blockingError$.next(
-                new Error(
-                  i18n.translate('discover.embeddable.search.dataViewError', {
-                    defaultMessage: 'Missing data view {indexPatternId}',
-                    values: {
-                      indexPatternId:
-                        typeof initialState.serializedSearchSource?.index === 'string'
-                          ? initialState.serializedSearchSource.index
-                          : initialState.serializedSearchSource?.index?.id ?? '',
-                    },
-                  })
-                )
-              );
-              return;
-            }
-            return dataViews![0];
-          }, [dataViews]);
-
           const onAddFilter = useCallback(
             async (field, value, operator) => {
+              const dataView = savedSearch.searchSource.getField('index');
               if (!dataView) return;
 
               let newFilters = generateFilters(
@@ -262,16 +248,16 @@ export const getSearchEmbeddableFactory = ({
                 filters: newFilters,
               });
             },
-            [dataView]
+            [savedSearch]
           );
 
           const renderAsFieldStatsTable = useMemo(
             () =>
               discoverServices.uiSettings.get(SHOW_FIELD_STATISTICS) &&
               viewMode === VIEW_MODE.AGGREGATED_LEVEL &&
-              dataView &&
+              savedSearch.searchSource.getField('index') &&
               Array.isArray(savedSearch.columns),
-            [savedSearch, dataView, viewMode]
+            [savedSearch, viewMode]
           );
 
           return (
@@ -283,7 +269,7 @@ export const getSearchEmbeddableFactory = ({
                       ...api,
                       fetchContext$,
                     }}
-                    dataView={dataView!}
+                    dataView={savedSearch.searchSource.getField('index')!}
                     onAddFilter={onAddFilter}
                     stateManager={searchEmbeddable.stateManager}
                   />
@@ -295,7 +281,7 @@ export const getSearchEmbeddableFactory = ({
                   >
                     <SearchEmbeddableGridComponent
                       api={{ ...api, fetchWarnings$ }}
-                      dataView={dataView!}
+                      dataView={savedSearch.searchSource.getField('index')!}
                       onAddFilter={isEsqlMode(savedSearch) ? undefined : onAddFilter}
                       stateManager={searchEmbeddable.stateManager}
                     />

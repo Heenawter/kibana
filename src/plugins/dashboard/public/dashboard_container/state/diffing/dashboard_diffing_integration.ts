@@ -30,6 +30,9 @@ export const reducersToIgnore: Array<keyof typeof dashboardContainerReducers> = 
   'setFullScreenMode',
   'setExpandedPanelId',
   'setHasUnsavedChanges',
+  'setDisableQueryInput',
+  'setDisableAutoRefresh',
+  'setDisableFilters',
 ];
 
 /**

@@ -163,7 +163,7 @@ export function SearchEmbeddableGridComponent({
       <DiscoverDocTableEmbeddableMemoized
         {...sharedProps}
         {...onStateEditedProps}
-        filters={savedSearch.searchSource.getField('filter') as Filter[]}
+        filters={savedSearch.searchSource.getOwnField('filter') as Filter[]}
         isEsqlMode={isEsql}
         isLoading={Boolean(loading)}
         sharedItemTitle={panelTitle || savedSearchTitle}
@@ -181,7 +181,7 @@ export function SearchEmbeddableGridComponent({
       headerRowHeightState={savedSearch.headerRowHeight}
       isPlainRecord={isEsql}
       loadingState={Boolean(loading) ? DataLoadingState.loading : DataLoadingState.loaded}
-      query={savedSearch.searchSource.getField('query')}
+      query={savedSearch.searchSource.getOwnField('query')}
       rowHeightState={savedSearch.rowHeight}
       savedSearchId={savedSearchId}
       searchTitle={panelTitle || savedSearchTitle}

@@ -8,20 +8,28 @@
 
 import { pick } from 'lodash';
 import deepEqual from 'react-fast-compare';
-import { BehaviorSubject, combineLatest, map, Observable, skip } from 'rxjs';
+import { BehaviorSubject, combineLatest, debounceTime, Observable, skip, switchMap } from 'rxjs';
 
 import { ISearchSource, SerializedSearchSourceFields } from '@kbn/data-plugin/common';
 import { DataView } from '@kbn/data-views-plugin/common';
 import { ROW_HEIGHT_OPTION, SAMPLE_SIZE_SETTING } from '@kbn/discover-utils';
 import { DataTableRecord } from '@kbn/discover-utils/types';
-import type { PublishesDataViews, StateComparators } from '@kbn/presentation-publishing';
+import { AggregateQuery, Filter, Query } from '@kbn/es-query';
+import { DatatableColumn } from '@kbn/expressions-plugin/common';
+import type {
+  PublishesDataViews,
+  PublishesUnifiedSearch,
+  StateComparators,
+} from '@kbn/presentation-publishing';
 import { SavedSearch } from '@kbn/saved-search-plugin/common';
 import { SortOrder, VIEW_MODE } from '@kbn/saved-search-plugin/public';
 import { DataTableColumnsMeta } from '@kbn/unified-data-table';
 
 import { getDefaultRowsPerPage } from '../../common/constants';
+import { getEsqlDataView } from '../application/main/state_management/utils/get_esql_data_view';
 import { DiscoverServices } from '../build_services';
 import { DEFAULT_HEADER_ROW_HEIGHT_LINES, EDITABLE_SAVED_SEARCH_KEYS } from './constants';
+import { isEsqlMode } from './initialize_fetch';
 import {
   PublishesSavedSearch,
   SearchEmbeddableRuntimeState,
@@ -29,7 +37,7 @@ import {
   SearchEmbeddableStateManager,
 } from './types';
 
-const initializeSearchSource = async (
+export const initializeSearchSource = async (
   dataService: DiscoverServices['data'],
   serializedSearchSource?: SerializedSearchSourceFields
 ) => {
@@ -65,7 +73,7 @@ export const initializeSearchEmbeddableApi = async (
     discoverServices: DiscoverServices;
   }
 ): Promise<{
-  api: PublishesSavedSearch & PublishesDataViews;
+  api: PublishesSavedSearch & PublishesDataViews & Partial<PublishesUnifiedSearch>;
   stateManager: SearchEmbeddableStateManager;
   comparators: StateComparators<SearchEmbeddableSerializedAttributes>;
   cleanup: () => void;
@@ -77,6 +85,14 @@ export const initializeSearchEmbeddableApi = async (
     initialState.serializedSearchSource
   );
   const searchSource$ = new BehaviorSubject<ISearchSource>(searchSource);
+
+  /** Initialize the stuff that is tied to the search source; time range comes from timeRangeApi */
+  const filters$ = new BehaviorSubject<Filter[] | undefined>(
+    searchSource.getField('filter') as Filter[]
+  );
+  const query$ = new BehaviorSubject<Query | AggregateQuery | undefined>(
+    searchSource.getField('query')
+  );
   const dataViews = new BehaviorSubject<DataView[] | undefined>(dataView ? [dataView] : undefined);
 
   /** This is the state that can be initialized from the saved initial state */
@@ -92,6 +108,7 @@ export const initializeSearchEmbeddableApi = async (
   /** This is the state that has to be fetched */
   const rows$ = new BehaviorSubject<DataTableRecord[]>([]);
   const columnsMeta$ = new BehaviorSubject<DataTableColumnsMeta | undefined>(undefined);
+  const esqlQueryColumns$ = new BehaviorSubject<DatatableColumn[] | undefined>(undefined);
   const totalHitCount$ = new BehaviorSubject<number | undefined>(undefined);
 
   const defaultRowHeight = discoverServices.uiSettings.get(ROW_HEIGHT_OPTION);
@@ -106,6 +123,7 @@ export const initializeSearchEmbeddableApi = async (
     breakdownField: breakdownField$,
     columns: columns$,
     columnsMeta: columnsMeta$,
+    esqlQueryColumns: esqlQueryColumns$,
     headerRowHeight: headerRowHeight$,
     rows: rows$,
     rowHeight: rowHeight$,
@@ -114,47 +132,81 @@ export const initializeSearchEmbeddableApi = async (
     sort: sort$,
     totalHitCount: totalHitCount$,
     viewMode: savedSearchViewMode$,
+    searchSource: searchSource$,
   };
 
   /** The saved search should be the source of truth for all state  */
   const savedSearch$ = new BehaviorSubject(initializedSavedSearch(stateManager, searchSource));
 
   /** This will fire when any of the **editable** state changes */
-  const onAnyStateChange: Observable<Partial<SearchEmbeddableSerializedAttributes>> = combineLatest(
+  const onAnyStateChange: Observable<Partial<SavedSearch>> = combineLatest(
     pick(stateManager, EDITABLE_SAVED_SEARCH_KEYS)
   );
 
+  const searchSourceParent = searchSource.getParent(); // this should be the dashboard
   /** Keep the saved search in sync with any state changes */
-  const syncSavedSearch = combineLatest([onAnyStateChange, searchSource$])
+  const syncSavedSearch = combineLatest([onAnyStateChange, serializedSearchSource$])
     .pipe(
       skip(1),
-      map(
-        ([newState, newSearchSource]) =>
-          ({
-            ...newState,
+      switchMap(
+        async ([partialSavedSearch, serializedSearchSource]): Promise<{
+          savedSearch: SavedSearch;
+          dataView?: DataView;
+        }> => {
+          const newSearchSource = await discoverServices.data.search.searchSource.create(
+            serializedSearchSource
+          );
+          newSearchSource.setParent(searchSourceParent);
+          const newSavedSearch: SavedSearch = {
+            ...savedSearch$.getValue(),
+            ...partialSavedSearch,
             searchSource: newSearchSource,
-          } as SavedSearch)
-      )
+          };
+          if (isEsqlMode(newSavedSearch)) {
+            const currentDataView = newSearchSource.getField('index');
+            const query = newSearchSource.getField('query') as AggregateQuery;
+            const nextDataView = await getEsqlDataView(query, currentDataView, discoverServices);
+            return { savedSearch: newSavedSearch, dataView: nextDataView };
+          }
+          return { savedSearch: newSavedSearch };
+        }
+      ),
+      debounceTime(1)
     )
-    .subscribe((newSavedSearch) => {
+    .subscribe(({ savedSearch: newSavedSearch, dataView: newDataView }) => {
+      if (newDataView) {
+        newSavedSearch.searchSource.setField('index', newDataView);
+      }
+      filters$.next(newSavedSearch.searchSource.getOwnField('filter') as Filter[]);
+      query$.next(newSavedSearch.searchSource.getOwnField('query'));
       savedSearch$.next(newSavedSearch);
+    });
+
+  const syncDataView = dataViews.pipe(skip(1)).subscribe((newDataViews) => {
+    if (!(newDataViews ?? []).length) return;
+    const newDataView = newDataViews![0];
+    searchSource$.next(searchSource$.getValue().setField('index', newDataView));
+  });
+
+  const syncSerializedSearchSource = searchSource$
+    .pipe(skip(1), debounceTime(60))
+    .subscribe(async (newSearchSource) => {
+      serializedSearchSource$.next(newSearchSource.getSerializedFields());
     });
 
   return {
     cleanup: () => {
       syncSavedSearch.unsubscribe();
+      syncDataView.unsubscribe();
+      syncSerializedSearchSource.unsubscribe();
     },
-    api: {
-      dataViews,
-      savedSearch$,
-    },
+    api: { filters$, query$, dataViews, savedSearch$ },
     stateManager,
     comparators: {
       serializedSearchSource: [
         serializedSearchSource$,
-        (value) => {
-          return; // the search source can't currently be changed from dashboard, so the setter is not necessary
-        },
+        (value) => serializedSearchSource$.next(value),
+        (a, b) => deepEqual(a, b),
       ],
       viewMode: [
         savedSearchViewMode$,

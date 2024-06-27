@@ -6,6 +6,7 @@
  * Side Public License, v 1.
  */
 
+import { Reference } from '@kbn/content-management-utils';
 import { apiHasParentApi, apiHasUniqueId, PublishingSubject } from '@kbn/presentation-publishing';
 import { BehaviorSubject, combineLatest, isObservable, map, Observable, of, switchMap } from 'rxjs';
 import { apiCanAddNewPanel, CanAddNewPanel } from './can_add_new_panel';
@@ -13,6 +14,7 @@ import { apiCanAddNewPanel, CanAddNewPanel } from './can_add_new_panel';
 export interface PanelPackage<SerializedState extends object = object> {
   panelType: string;
   initialState?: SerializedState;
+  references?: Reference[];
 }
 
 export interface PresentationContainer extends CanAddNewPanel {

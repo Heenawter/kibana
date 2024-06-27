@@ -126,6 +126,8 @@ export interface SearchBarOwnProps<QT extends AggregateQuery | Query = Query> {
    * Disables all inputs and interactive elements,
    */
   isDisabled?: boolean;
+  disableQueryInput?: boolean;
+  disableAutoRefresh?: boolean;
 
   submitOnBlur?: boolean;
 
@@ -615,6 +617,8 @@ class SearchBarUI<QT extends (Query | AggregateQuery) | Query = Query> extends C
           showAutoRefreshOnly={this.props.showAutoRefreshOnly}
           showQueryInput={this.props.showQueryInput}
           showAddFilter={this.props.showFilterBar}
+          disableQueryInput={this.props.disableQueryInput}
+          disableAutoRefresh={this.props.disableAutoRefresh}
           isDisabled={this.props.isDisabled}
           onRefresh={this.props.onRefresh}
           onRefreshChange={this.props.onRefreshChange}

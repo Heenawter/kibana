@@ -163,6 +163,9 @@ export class DashboardContainer
   private domNode?: HTMLElement;
   private overlayRef?: OverlayRef;
   private allDataViews: DataView[] = [];
+  public dataViews: BehaviorSubject<DataView[] | undefined> = new BehaviorSubject<
+    DataView[] | undefined
+  >(undefined);
 
   // performance monitoring
   public lastLoadStartTime?: number;
@@ -171,6 +174,8 @@ export class DashboardContainer
   public firstLoad: boolean = true;
   private hadContentfulRender = false;
   private scrollPosition?: number;
+
+  public ignoreUnifiedSearch: boolean = false;
 
   // cleanup
   public stopSyncingWithUnifiedSearch?: () => void;
@@ -522,6 +527,7 @@ export class DashboardContainer
           ...panelPackage.initialState,
           id: newId,
         },
+        references: panelPackage.references,
       };
       this.updateInput({ panels: { ...otherPanels, [newId]: newPanel } });
       onSuccess(newId, newPanel.explicitInput.title);
@@ -712,6 +718,7 @@ export class DashboardContainer
   public setAllDataViews = (newDataViews: DataView[]) => {
     this.allDataViews = newDataViews;
     this.onDataViewsUpdate$.next(newDataViews);
+    this.dataViews.next(newDataViews);
   };
 
   public getExpandedPanelId = () => {

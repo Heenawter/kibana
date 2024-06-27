@@ -6,8 +6,7 @@
  * Side Public License, v 1.
  */
 
-import { omit, pick } from 'lodash';
-import deepEqual from 'react-fast-compare';
+import { pick } from 'lodash';
 
 import { EmbeddableStateWithType } from '@kbn/embeddable-plugin/common';
 import { SerializedPanelState } from '@kbn/presentation-containers';
@@ -21,11 +20,7 @@ import { SavedSearchUnwrapResult } from '@kbn/saved-search-plugin/public';
 
 import { extract, inject } from '../../../common/embeddable/search_inject_extract';
 import { DiscoverServices } from '../../build_services';
-import {
-  EDITABLE_PANEL_KEYS,
-  EDITABLE_SAVED_SEARCH_KEYS,
-  SEARCH_EMBEDDABLE_TYPE,
-} from '../constants';
+import { EDITABLE_PANEL_KEYS, SEARCH_EMBEDDABLE_TYPE } from '../constants';
 import { SearchEmbeddableRuntimeState, SearchEmbeddableSerializedState } from '../types';
 
 export const deserializeState = async ({
@@ -41,16 +36,13 @@ export const deserializeState = async ({
     // by reference
     const { get } = discoverServices.savedSearch;
     const so = await get(savedObjectId, true);
-    const savedObjectOverride = pick(serializedState.rawState, EDITABLE_SAVED_SEARCH_KEYS);
     return {
-      // ignore the time range from the saved object - only global time range + panel time range matter
-      ...omit(so, 'timeRange'),
+      ...so,
       savedObjectId,
       savedObjectTitle: so.title,
       savedObjectDescription: so.description,
       // Overwrite SO state with dashboard state for title, description, columns, sort, etc.
       ...panelState,
-      ...savedObjectOverride,
     };
   } else {
     // by value
@@ -59,7 +51,7 @@ export const deserializeState = async ({
       undefined,
       inject(
         serializedState.rawState as unknown as EmbeddableStateWithType,
-        serializedState.references ?? []
+        serializedState.rawState.attributes?.references ?? []
       ) as SavedSearchUnwrapResult,
       true
     );
@@ -70,7 +62,7 @@ export const deserializeState = async ({
   }
 };
 
-export const serializeState = async ({
+export const serializeState = ({
   uuid,
   initialState,
   savedSearch,
@@ -84,32 +76,16 @@ export const serializeState = async ({
   serializeTitles: () => SerializedTitles;
   serializeTimeRange: () => SerializedTimeRange;
   savedObjectId?: string;
-}): Promise<SerializedPanelState<SearchEmbeddableSerializedState>> => {
+}): SerializedPanelState<SearchEmbeddableSerializedState> => {
   const searchSource = savedSearch.searchSource;
   const { searchSourceJSON, references: originalReferences } = searchSource.serialize();
   const savedSearchAttributes = toSavedSearchAttributes(savedSearch, searchSourceJSON);
 
   if (savedObjectId) {
-    // only save the current state that is **different** than the initial state
-    const overwriteState = EDITABLE_SAVED_SEARCH_KEYS.reduce((prev, key) => {
-      if (
-        deepEqual(
-          savedSearchAttributes[key],
-          initialState[key as keyof SearchEmbeddableRuntimeState]
-        )
-      ) {
-        return prev;
-      }
-      return { ...prev, [key]: savedSearchAttributes[key] };
-    }, {});
-
     return {
       rawState: {
         savedObjectId,
-        // Serialize the current dashboard state into the panel state **without** updating the saved object
         ...serializeTitles(),
-        ...serializeTimeRange(),
-        ...overwriteState,
       },
       // No references to extract for by-reference embeddable since all references are stored with by-reference saved object
       references: [],

@@ -93,6 +93,9 @@ export function InternalDashboardTopNav({
   const hasRunMigrations = dashboard.select(
     (state) => state.componentState.hasRunClientsideMigrations
   );
+  const disableQueryInput = dashboard.select((state) => state.componentState.disableQueryInput);
+  const disableAutoRefresh = dashboard.select((state) => state.componentState.disableAutoRefresh);
+  const disableFilters = dashboard.select((state) => state.componentState.disableFilters);
   const hasUnsavedChanges = dashboard.select((state) => state.componentState.hasUnsavedChanges);
   const fullScreenMode = dashboard.select((state) => state.componentState.fullScreenMode);
   const savedQueryId = dashboard.select((state) => state.componentState.savedQueryId);
@@ -103,6 +106,8 @@ export function InternalDashboardTopNav({
   const viewMode = dashboard.select((state) => state.explicitInput.viewMode);
   const query = dashboard.select((state) => state.explicitInput.query);
   const title = dashboard.select((state) => state.explicitInput.title);
+
+  // const disableQueryBar = dashboard.select((state) => state.componentState.disableQueryBar);
 
   // store data views in state & subscribe to dashboard data view changes.
   const [allDataViews, setAllDataViews] = useState<DataView[]>([]);
@@ -321,6 +326,7 @@ export function InternalDashboardTopNav({
       >{`${getDashboardBreadcrumb()} - ${dashboardTitle}`}</h1>
       <TopNavMenu
         {...visibilityProps}
+        // isDisabled={dashboard.ignoreUnifiedSearch}
         query={query}
         badges={badges}
         screenTitle={title}
@@ -335,6 +341,9 @@ export function InternalDashboardTopNav({
             ? setCustomHeaderActionMenu ?? undefined
             : setHeaderActionMenu
         }
+        disableQueryInput={disableQueryInput}
+        showFilterBar={!disableFilters}
+        disableAutoRefresh={disableAutoRefresh}
         className={fullScreenMode ? 'kbnTopNavMenu-isFullScreen' : undefined}
         config={
           visibilityProps.showTopNavMenu
