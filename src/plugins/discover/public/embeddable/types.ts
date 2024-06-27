@@ -9,6 +9,7 @@
 import { ISearchSource } from '@kbn/data-plugin/common';
 import { DataTableRecord } from '@kbn/discover-utils/types';
 import type { DefaultEmbeddableApi } from '@kbn/embeddable-plugin/public';
+import { DatatableColumn } from '@kbn/expressions-plugin/common';
 import {
   EmbeddableApiContext,
   HasEditCapabilities,
@@ -39,6 +40,7 @@ export type SearchEmbeddableState = Pick<
   rows: DataTableRecord[];
   columnsMeta: DataTableColumnsMeta | undefined;
   totalHitCount: number | undefined;
+  esqlQueryColumns: DatatableColumn[] | undefined;
 };
 
 export type SearchEmbeddableStateManager = {
@@ -49,7 +51,7 @@ export type SearchEmbeddableStateManager = {
 
 export type SearchEmbeddableSerializedAttributes = Omit<
   SearchEmbeddableState,
-  'rows' | 'columnsMeta' | 'totalHitCount' | 'searchSource'
+  'rows' | 'columnsMeta' | 'totalHitCount' | 'searchSource' | 'esqlQueryColumns'
 > &
   Pick<SerializableSavedSearch, 'serializedSearchSource'>;
 

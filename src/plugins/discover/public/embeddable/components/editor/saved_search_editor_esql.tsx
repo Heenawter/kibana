@@ -21,6 +21,7 @@ import {
 
 import { useDiscoverServices } from '../../../hooks/use_discover_services';
 import { SearchEmbeddableApi, SearchEmbeddableStateManager } from '../../types';
+import { getEsqlQueryFieldList } from '../../../application/main/components/sidebar/lib/get_field_list';
 
 const getCreationOptions: UnifiedFieldListSidebarContainerProps['getCreationOptions'] = () => {
   return {
@@ -43,7 +44,11 @@ export function SavedSearchEsqlEditor({
 }) {
   const services = useDiscoverServices();
 
-  const [savedSearch, loading] = useBatchedPublishingSubjects(api.savedSearch$, api.dataLoading);
+  const [savedSearch, loading, esqlQueryColumns] = useBatchedPublishingSubjects(
+    api.savedSearch$,
+    api.dataLoading,
+    stateManager.esqlQueryColumns
+  );
   const [query, setQuery] = useState<AggregateQuery>(
     savedSearch.searchSource.getField('query') as AggregateQuery
   );
@@ -139,7 +144,7 @@ export function SavedSearchEsqlEditor({
             variant="responsive"
             dataView={dataView}
             showFieldList={true}
-            allFields={dataView.fields}
+            allFields={getEsqlQueryFieldList(esqlQueryColumns)}
             getCreationOptions={getCreationOptions}
             workspaceSelectedFieldNames={savedSearch.columns}
             services={services}

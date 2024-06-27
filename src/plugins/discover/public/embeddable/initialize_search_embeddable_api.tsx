@@ -15,6 +15,7 @@ import { DataView } from '@kbn/data-views-plugin/common';
 import { ROW_HEIGHT_OPTION, SAMPLE_SIZE_SETTING } from '@kbn/discover-utils';
 import { DataTableRecord } from '@kbn/discover-utils/types';
 import { AggregateQuery, Filter, Query } from '@kbn/es-query';
+import { DatatableColumn } from '@kbn/expressions-plugin/common';
 import type {
   PublishesDataViews,
   PublishesUnifiedSearch,
@@ -107,6 +108,7 @@ export const initializeSearchEmbeddableApi = async (
   /** This is the state that has to be fetched */
   const rows$ = new BehaviorSubject<DataTableRecord[]>([]);
   const columnsMeta$ = new BehaviorSubject<DataTableColumnsMeta | undefined>(undefined);
+  const esqlQueryColumns$ = new BehaviorSubject<DatatableColumn[] | undefined>(undefined);
   const totalHitCount$ = new BehaviorSubject<number | undefined>(undefined);
 
   const defaultRowHeight = discoverServices.uiSettings.get(ROW_HEIGHT_OPTION);
@@ -121,6 +123,7 @@ export const initializeSearchEmbeddableApi = async (
     breakdownField: breakdownField$,
     columns: columns$,
     columnsMeta: columnsMeta$,
+    esqlQueryColumns: esqlQueryColumns$,
     headerRowHeight: headerRowHeight$,
     rows: rows$,
     rowHeight: rowHeight$,

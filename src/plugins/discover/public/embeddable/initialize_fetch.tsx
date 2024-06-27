@@ -155,6 +155,7 @@ export function initializeFetch({
               rows: result.records,
               hitCount: result.records.length,
               fetchContext,
+              esqlQueryColumns: result.esqlQueryColumns,
             };
           }
 
@@ -210,8 +211,13 @@ export function initializeFetch({
       stateManager.totalHitCount.next(next.hitCount);
       api.fetchWarnings$.next(next.warnings ?? []);
       api.fetchContext$.next(next.fetchContext);
+
+      /** ESQL stuff */
       if (next.hasOwnProperty('columnsMeta')) {
         stateManager.columnsMeta.next(next.columnsMeta);
+      }
+      if (next.hasOwnProperty('esqlQueryColumns')) {
+        stateManager.esqlQueryColumns.next(next.esqlQueryColumns);
       }
     });
 
