@@ -40,15 +40,7 @@ export const useLayoutStyles = () => {
         ${euiTheme.border.width.thin} 0 ${euiTheme.colors.vis.euiColorVis0},
         0 -${euiTheme.border.width.thin} ${euiTheme.colors.vis.euiColorVis0};
 
-      &.kbnGrid {
-        // remove margin top + bottom on grid in favour of padding in row
-        padding-bottom: 0px;
-      }
-
       .kbnGridRow {
-        // use padding in grid row so that dotted grid is not cut off
-        padding-bottom: calc(var(--kbnGridGutterSize) * 1px);
-
         &--targeted {
           background-position: top calc((var(--kbnGridGutterSize) / 2) * -1px) left
             calc((var(--kbnGridGutterSize) / 2) * -1px);
@@ -100,6 +92,25 @@ export const useLayoutStyles = () => {
         .embPanel__hoverActions {
           transition: none;
         }
+      }
+
+      // styling for what the grid row header looks like when being dragged
+      .kbnGridRowHeader--active {
+        background-color: ${euiTheme.colors.backgroundBasePlain};
+        border-radius: ${euiTheme.border.radius.medium} ${euiTheme.border.radius.medium};
+        padding-left: ${euiTheme.size.m};
+        box-shadow: inset 0px 0px 0px ${euiTheme.border.width.thick}
+          ${euiTheme.colors.vis.euiColorVis0};
+        // hide accordian arrow + panel count text when row is being dragged
+        & .kbnGridRowTitle--button svg,
+        & .kbnGridLayout--panelCount {
+          display: none;
+        }
+      }
+
+      // styles for the area where the row will be dropped
+      .kbnGridPanel--rowDragPreview {
+        background-color: ${transparentize(euiTheme.colors.vis.euiColorVis0, 0.2)};
       }
     `;
   }, [euiTheme]);
