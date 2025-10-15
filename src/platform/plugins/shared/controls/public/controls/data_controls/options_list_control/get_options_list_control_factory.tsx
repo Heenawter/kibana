@@ -10,6 +10,7 @@
 import React, { useEffect } from 'react';
 import {
   BehaviorSubject,
+  Observable,
   Subject,
   combineLatest,
   debounceTime,
@@ -73,6 +74,8 @@ export const getOptionsListControlFactory = (): EmbeddableFactory<
       if (isOptionsListESQLControlState(state)) {
         throw new Error('ES|QL control state handling not yet implemented');
       }
+
+      const sectionId$: Observable<string> = parentApi?.getPanelSection$(uuid);
 
       const editorStateManager = initializeEditorStateManager(state);
       const temporaryStateManager = initializeTemporayStateManager();
@@ -217,21 +220,27 @@ export const getOptionsListControlFactory = (): EmbeddableFactory<
         selectionsManager.api.selectedOptions$,
         selectionsManager.api.existsSelected$,
         selectionsManager.api.exclude$,
+        sectionId$,
       ])
         .pipe(debounceTime(0))
-        .subscribe(([dataViews, fieldName, selectedOptions, existsSelected, exclude]) => {
-          const dataView = dataViews?.[0];
-          let newFilter: Filter | undefined;
-          if (dataView) {
-            newFilter = buildFilter(dataView, uuid, {
-              fieldName,
-              selectedOptions,
-              existsSelected,
-              exclude,
-            });
+        .subscribe(
+          ([dataViews, fieldName, selectedOptions, existsSelected, exclude, sectionId]) => {
+            // console.log({ sectionId });
+            const dataView = dataViews?.[0];
+            let newFilter: Filter | undefined;
+            if (dataView) {
+              newFilter = buildFilter(dataView, uuid, {
+                fieldName,
+                selectedOptions,
+                existsSelected,
+                exclude,
+                sectionId,
+              });
+            }
+            console.log({ dataView, newFilter });
+            dataControlManager.internalApi.setOutputFilter(newFilter);
           }
-          dataControlManager.internalApi.setOutputFilter(newFilter);
-        });
+        );
 
       function serializeState(): SerializedPanelState<OptionsListControlState> {
         return {
