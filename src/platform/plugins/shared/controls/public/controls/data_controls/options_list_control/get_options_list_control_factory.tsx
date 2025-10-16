@@ -237,7 +237,7 @@ export const getOptionsListControlFactory = (): EmbeddableFactory<
                 sectionId,
               });
             }
-            console.log({ dataView, newFilter });
+
             dataControlManager.internalApi.setOutputFilter(newFilter);
           }
         );

@@ -471,7 +471,6 @@ export class SessionService {
    */
   public start() {
     if (!this.currentApp) throw new Error('this.currentApp is missing');
-    console.log('START');
     this.storeSessionSnapshot();
 
     this.state.transitions.start({ appName: this.currentApp });
@@ -536,7 +535,6 @@ export class SessionService {
       freeze: false,
     });
     currentState.stateContainer.set(this.state.get());
-    console.log({ get: this.state.get() });
     this.sessionSnapshots.set(this.getSessionId()!, currentState.stateContainer);
   }
 

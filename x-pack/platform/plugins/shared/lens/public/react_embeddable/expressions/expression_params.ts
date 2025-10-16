@@ -40,6 +40,7 @@ import { getVariables } from './variables';
 //   isSearchContextIncompatibleWithDataViews,
 // } from '../user_messages/checks';
 import { getExecutionSearchContext, type MergedSearchContext } from './merged_search_context';
+import { search } from 'superagent';
 
 interface GetExpressionRendererPropsParams {
   searchContext: MergedSearchContext;
