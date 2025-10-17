@@ -15,10 +15,10 @@ import type { PublishesESQLVariables } from '@kbn/esql-types';
 import type { GridLayoutData } from '@kbn/grid-layout';
 import type { IKbnUrlStateStorage } from '@kbn/kibana-utils-plugin/public';
 import type {
-  CanAddNewSection,
   CanExpandPanels,
   CanPinPanel,
   HasLastSavedChildState,
+  HasSections,
   HasSerializedChildState,
   PassThroughContext,
   PresentationContainer,
@@ -95,7 +95,7 @@ export interface DashboardCreationOptions {
 
 export type DashboardApi = CanExpandPanels &
   CanPinPanel &
-  CanAddNewSection &
+  HasSections &
   HasAppContext &
   HasExecutionContext &
   HasLastSavedChildState &
