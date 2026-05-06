@@ -19,10 +19,12 @@ import {
   useGeneratedHtmlId,
   type UseEuiTheme,
 } from '@elastic/eui';
-import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import { css } from '@emotion/react';
-import { ControlLabelTooltip, useIndicateRelatedPanelsSelector } from '@kbn/controls-renderer';
+import { ControlLabelTooltip } from '@kbn/controls-renderer';
+import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import { i18n } from '@kbn/i18n';
+import { useBatchedPublishingSubjects } from '@kbn/presentation-publishing';
+import { BehaviorSubject } from 'rxjs';
 
 export const ConditionalLabelWrapper = ({
   isPinned,
@@ -37,14 +39,17 @@ export const ConditionalLabelWrapper = ({
   tooltipLabel?: string;
 }>) => {
   const styles = useMemoCss(labelWrapperStyles);
-  const {
-    canIndicateRelatedPanels,
-    isIndicatingRelatedPanels,
-    onToggleIndicateRelatedPanels,
-    numberOfRelatedPanels,
-  } = useIndicateRelatedPanelsSelector(api);
-  const enableIndicateRelatedPanels = Boolean(canIndicateRelatedPanels && numberOfRelatedPanels);
 
+  const canIndicateRelatedPanels = 'relatedPanels$' in api;
+  const [relatedPanels] = useBatchedPublishingSubjects(
+    'relatedPanels$' in api
+      ? (api.relatedPanels$ as unknown as BehaviorSubject<string[]>)
+      : new BehaviorSubject([])
+  );
+  console.log({ relatedPanels, length: relatedPanels.length });
+
+  const enableIndicateRelatedPanels = Boolean(canIndicateRelatedPanels && relatedPanels.length);
+  const isIndicatingRelatedPanels = false;
   const linkTextRef = useRef<HTMLSpanElement>(null);
   const tooltipId = useGeneratedHtmlId({});
 
@@ -58,22 +63,20 @@ export const ConditionalLabelWrapper = ({
       <EuiLink
         css={[styles.clickableLabel]}
         color={isIndicatingRelatedPanels ? 'text' : 'subdued'}
-        onClick={enableIndicateRelatedPanels ? onToggleIndicateRelatedPanels : undefined}
+        onClick={enableIndicateRelatedPanels ? () => {} : undefined}
         tabIndex={-1}
       >
         <ControlLabelTooltip
           canIndicateRelatedPanels={canIndicateRelatedPanels}
           isIndicatingRelatedPanels={isIndicatingRelatedPanels}
-          numberOfRelatedPanels={numberOfRelatedPanels}
+          numberOfRelatedPanels={relatedPanels.length}
           panelLabel={label}
           panelTooltipLabel={tooltipLabel}
           id={tooltipId}
         >
           <span
             onKeyDown={(e) =>
-              enableIndicateRelatedPanels && (e.key === 'Enter' || e.key === ' ')
-                ? onToggleIndicateRelatedPanels()
-                : null
+              enableIndicateRelatedPanels && (e.key === 'Enter' || e.key === ' ') ? () => {} : null
             }
             css={styles.clickableLabelInner}
             role="button"
@@ -81,7 +84,7 @@ export const ConditionalLabelWrapper = ({
             ref={linkTextRef}
           >
             {label}{' '}
-            {canIndicateRelatedPanels && numberOfRelatedPanels === 0 && (
+            {canIndicateRelatedPanels && relatedPanels.length === 0 && (
               <EuiIcon
                 size="s"
                 aria-label={i18n.translate('controls.controlGroup.warningNoRelatedPanels', {

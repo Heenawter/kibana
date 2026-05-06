@@ -169,15 +169,15 @@ export const initializeRelatedPanelsManager = ({
         return relatedPanelUUIDs.has(a);
       };
 
-      arePanelsRelated$.next((a, b, options) => {
-        if (options?.byESQLVariableConsumers) return byESQLVariable(a, b);
-        return byBoth(a, b);
-      });
+      // arePanelsRelated$.next((a, b, options) => {
+      //   if (options?.byESQLVariableConsumers) return byESQLVariable(a, b);
+      //   return byBoth(a, b);
+      // });
     }
   );
 
   const setIndicateRelatedPanelsId = (panelId: string | undefined) => {
-    indicateRelatedPanelsId$.next(panelId);
+    // indicateRelatedPanelsId$.next(panelId);
     backupService.setIndicateRelatedPanelsId(savedObjectId$.value, panelId);
   };
 
@@ -185,19 +185,19 @@ export const initializeRelatedPanelsManager = ({
   const getRelatedPanelIds$ = (panelId: string) => {
     const relatedPanelIds$ = new BehaviorSubject<string[]>([]);
 
-    const subscription = combineLatest([arePanelsRelated$, children$])
-      .pipe(
-        map(([arePanelsRelated, children]) => {
-          return Object.keys(children).filter(
-            (id) =>
-              // Only panels related by ESQL variables can currently be indicated
-              id !== panelId && arePanelsRelated(id, panelId, { byESQLVariableConsumers: true })
-          );
-        })
-      )
-      .subscribe((next) => relatedPanelIds$.next(next));
-    relatedPanelIdSubscriptions.add(subscription);
-    hasRelatedPanelIdSubscriptions$.next(true);
+    // const subscription = combineLatest([arePanelsRelated$, children$])
+    //   .pipe(
+    //     map(([arePanelsRelated, children]) => {
+    //       return Object.keys(children).filter(
+    //         (id) =>
+    //           // Only panels related by ESQL variables can currently be indicated
+    //           id !== panelId && arePanelsRelated(id, panelId, { byESQLVariableConsumers: true })
+    //       );
+    //     })
+    //   )
+    //   .subscribe((next) => relatedPanelIds$.next(next));
+    // relatedPanelIdSubscriptions.add(subscription);
+    // hasRelatedPanelIdSubscriptions$.next(true);
     return relatedPanelIds$;
   };
 
