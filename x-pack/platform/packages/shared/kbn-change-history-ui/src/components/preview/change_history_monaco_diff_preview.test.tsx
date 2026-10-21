@@ -6,38 +6,20 @@
  */
 
 import '@testing-library/jest-dom';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { monaco } from '@kbn/code-editor';
 import { TestProvider } from '../../test_utils/test_providers';
-import type { ChangeHistoryPreviewValidationContext } from './change_history_monaco_diff_preview';
+import type { ChangeHistoryPreviewEditorContext } from './change_history_monaco_diff_preview';
 import { ChangeHistoryMonacoDiffPreview } from './change_history_monaco_diff_preview';
+import { ChangeHistoryPreviewSettingsSection } from './change_history_preview_settings_popover';
 
-interface MockValidationResult {
-  id: string;
-  message: string;
-}
+const mockFooterContext = jest.fn();
 
-let mockValidationResults: MockValidationResult[] = [];
-const mockHandleValidationErrorClick = jest.fn();
-
-const renderValidation = ({ highlightValidationErrors }: ChangeHistoryPreviewValidationContext) =>
-  highlightValidationErrors ? (
-    <div data-test-subj="validationSlot">
-      {mockValidationResults.length === 0
-        ? 'No validation errors'
-        : mockValidationResults.map((error) => (
-            <button
-              key={error.id}
-              type="button"
-              data-test-subj={`validationError-${error.id}`}
-              onClick={() => mockHandleValidationErrorClick(error)}
-            >
-              {error.message}
-            </button>
-          ))}
-    </div>
-  ) : null;
+const renderFooter = (context: ChangeHistoryPreviewEditorContext) => {
+  mockFooterContext(context);
+  return <div data-test-subj="footerSlot">Custom footer</div>;
+};
 
 const mockYamlModel = {
   getLineLength: jest.fn(() => 10),
@@ -120,11 +102,6 @@ jest.mock('@kbn/code-editor', () => {
 const mockCreateEditor = monaco.editor.create as jest.Mock;
 const mockCreateDiffEditor = monaco.editor.createDiffEditor as jest.Mock;
 
-const sampleValidationError: MockValidationResult = {
-  id: 'preview-validation-error',
-  message: 'Invalid document',
-};
-
 const testThemeData = { base: 'vs' as const, inherit: true, rules: [], colors: {} };
 const testThemeDefinition = { id: 'test-theme', getDefinition: () => testThemeData };
 
@@ -138,7 +115,7 @@ const renderPreview = (props: React.ComponentProps<typeof ChangeHistoryMonacoDif
 describe('ChangeHistoryMonacoDiffPreview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockValidationResults = [];
+    mockFooterContext.mockClear();
     onDidUpdateDiffCallbacks.length = 0;
     mockLineChanges = [
       {
@@ -164,8 +141,7 @@ describe('ChangeHistoryMonacoDiffPreview', () => {
     expect(screen.getByTestId('changeHistoryMonacoPreview')).toBeInTheDocument();
     expect(mockCreateEditor).toHaveBeenCalled();
     expect(mockCreateDiffEditor).not.toHaveBeenCalled();
-    expect(screen.queryByText('No validation errors')).not.toBeInTheDocument();
-    expect(screen.getByTestId('changeHistoryPreviewSettingsButton')).toBeInTheDocument();
+    expect(screen.queryByTestId('changeHistoryPreviewSettingsButton')).not.toBeInTheDocument();
   });
 
   it('renders a diff editor when compare yaml is identical', () => {
@@ -376,22 +352,6 @@ describe('ChangeHistoryMonacoDiffPreview', () => {
     expect(mockCreateDiffEditor.mock.calls.length).toBe(createCallsBeforeToggle);
   });
 
-  it('keeps settings popover open when toggling highlight validation', () => {
-    renderPreview({
-      target: 'name: current\n',
-      baseline: 'name: original\n',
-      renderValidation,
-    });
-
-    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
-    expect(screen.getByTestId('changeHistoryCompareUnified')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId('changeHistoryHighlightValidationErrors'));
-
-    expect(screen.getByTestId('changeHistoryCompareUnified')).toBeInTheDocument();
-    expect(screen.getByTestId('changeHistoryHighlightValidationErrors')).toBeInTheDocument();
-  });
-
   it('keeps settings popover open when switching compare mode', () => {
     renderPreview({
       target: 'name: current\n',
@@ -403,61 +363,6 @@ describe('ChangeHistoryMonacoDiffPreview', () => {
 
     expect(screen.getByTestId('changeHistoryCompareUnified')).toBeInTheDocument();
     expect(screen.getByTestId('changeHistoryCompareSplit')).toBeInTheDocument();
-  });
-
-  it('shows the validation slot when highlight validation is enabled', () => {
-    renderPreview({ target: 'name: current\n', renderValidation });
-
-    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
-    fireEvent.click(screen.getByTestId('changeHistoryHighlightValidationErrors'));
-
-    expect(screen.getByTestId('validationSlot')).toBeInTheDocument();
-    expect(screen.getByText('No validation errors')).toBeInTheDocument();
-  });
-
-  it('does not show compare mode settings when yaml has no diff baseline', () => {
-    jest.useFakeTimers();
-    renderPreview({ target: 'name: current\n' });
-
-    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
-
-    expect(screen.queryByTestId('changeHistoryCompareUnified')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('changeHistoryCompareSplit')).not.toBeInTheDocument();
-  });
-
-  it('shows the validation accordion when highlight validation is enabled', async () => {
-    jest.useFakeTimers();
-    renderPreview({ target: 'name: current\n', renderValidation });
-
-    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
-    fireEvent.click(screen.getByTestId('changeHistoryHighlightValidationErrors'));
-
-    await act(async () => {
-      jest.advanceTimersByTime(150);
-      jest.runOnlyPendingTimers();
-      await Promise.resolve();
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('No validation errors')).toBeInTheDocument();
-    });
-  });
-
-  it('renders the validation slot and lets it use the editor context', async () => {
-    mockValidationResults = [sampleValidationError];
-
-    renderPreview({ target: 'name: current\nsteps:\n  - bad\n', renderValidation });
-
-    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
-    fireEvent.click(screen.getByTestId('changeHistoryHighlightValidationErrors'));
-
-    await waitFor(() => {
-      expect(screen.getByTestId(`validationError-${sampleValidationError.id}`)).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByTestId(`validationError-${sampleValidationError.id}`));
-
-    expect(mockHandleValidationErrorClick).toHaveBeenCalledWith(sampleValidationError);
   });
 
   it('moves compare mode selection and focus with arrow keys', () => {
@@ -483,15 +388,6 @@ describe('ChangeHistoryMonacoDiffPreview', () => {
     );
   });
 
-  it('hides the validation setting when no validation slot is provided', () => {
-    jest.useFakeTimers();
-    renderPreview({ target: 'name: current\n' });
-
-    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
-
-    expect(screen.queryByTestId('changeHistoryHighlightValidationErrors')).not.toBeInTheDocument();
-  });
-
   it('serializes objects as pretty JSON and defaults the language to json', () => {
     jest.useFakeTimers();
     render(
@@ -512,22 +408,6 @@ describe('ChangeHistoryMonacoDiffPreview', () => {
     expect(mockCreateEditor).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ theme: 'my-theme' })
-    );
-  });
-
-  it('uses a custom settings label when provided and "Editor settings" otherwise', () => {
-    jest.useFakeTimers();
-    const { unmount } = renderPreview({ target: 'name: current\n' });
-    expect(screen.getByTestId('changeHistoryPreviewSettingsButton')).toHaveAttribute(
-      'aria-label',
-      'Editor settings'
-    );
-    unmount();
-
-    renderPreview({ target: 'name: current\n', settingsLabel: 'YAML editor settings' });
-    expect(screen.getByTestId('changeHistoryPreviewSettingsButton')).toHaveAttribute(
-      'aria-label',
-      'YAML editor settings'
     );
   });
 
@@ -556,5 +436,119 @@ describe('ChangeHistoryMonacoDiffPreview', () => {
       expect.anything(),
       expect.objectContaining({ theme: 'test-theme' })
     );
+  });
+
+  it('renders no settings in single mode by default', () => {
+    jest.useFakeTimers();
+    renderPreview({ target: 'name: current\n' });
+
+    expect(screen.queryByTestId('changeHistoryPreviewSettingsButton')).not.toBeInTheDocument();
+  });
+
+  it('shows only the compare mode setting in the default settings popover', () => {
+    jest.useFakeTimers();
+    renderPreview({ target: 'name: current\n', baseline: 'name: original\n' });
+
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+
+    expect(screen.getByTestId('changeHistoryCompareUnified')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareSplit')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryPreviewSettingsButton')).toHaveAttribute(
+      'aria-label',
+      'Settings'
+    );
+  });
+
+  it('renders extra settings below the compare mode setting and keeps them open on change', () => {
+    jest.useFakeTimers();
+    renderPreview({
+      target: 'name: current\n',
+      baseline: 'name: original\n',
+      extraSettings: (
+        <ChangeHistoryPreviewSettingsSection>
+          <span data-test-subj="customSetting">My setting</span>
+        </ChangeHistoryPreviewSettingsSection>
+      ),
+    });
+
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+
+    expect(
+      screen.getAllByText(/Code comparing|My setting/).map((element) => element.textContent)
+    ).toEqual(['Code comparing', 'My setting']);
+
+    fireEvent.click(screen.getByTestId('changeHistoryCompareSplit'));
+
+    expect(screen.getByTestId('customSetting')).toBeInTheDocument();
+    expect(mockDiffUpdateOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ renderSideBySide: true })
+    );
+  });
+
+  it('shows extra settings without the compare mode setting in single mode', () => {
+    jest.useFakeTimers();
+    renderPreview({
+      target: 'name: current\n',
+      extraSettings: (
+        <ChangeHistoryPreviewSettingsSection>
+          <span data-test-subj="customSetting">My setting</span>
+        </ChangeHistoryPreviewSettingsSection>
+      ),
+    });
+
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+
+    expect(screen.getByTestId('customSetting')).toBeInTheDocument();
+    expect(screen.queryByTestId('changeHistoryCompareUnified')).not.toBeInTheDocument();
+  });
+
+  it('renders the footer slot with the editor context', () => {
+    jest.useFakeTimers();
+    renderPreview({ target: 'name: current\n', renderFooter });
+
+    expect(screen.getByTestId('footerSlot')).toBeInTheDocument();
+    expect(mockFooterContext).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        isEditorMounted: true,
+        getActiveEditor: expect.any(Function),
+        configureDiffEditors: expect.any(Function),
+        decorationsRef: expect.any(Object),
+      })
+    );
+  });
+
+  it('applies editorOptions to the editor on creation and when they change', () => {
+    jest.useFakeTimers();
+    const first = { hover: { enabled: 'on' as const } };
+    const { rerender } = renderPreview({ target: 'name: current\n', editorOptions: first });
+
+    expect(mockCreateEditor).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ hover: { enabled: 'on' } })
+    );
+
+    const updateOptions = mockCreateEditor.mock.results[0].value.updateOptions as jest.Mock;
+    const second = { hover: { enabled: 'off' as const } };
+    rerender(
+      <TestProvider>
+        <ChangeHistoryMonacoDiffPreview
+          language="yaml"
+          target={'name: current\n'}
+          editorOptions={second}
+        />
+      </TestProvider>
+    );
+
+    expect(updateOptions).toHaveBeenCalledWith(second);
+  });
+
+  it('applies editorOptions to a diff editor and both panes', () => {
+    jest.useFakeTimers();
+    const editorOptions = { renderValidationDecorations: 'on' as const };
+    renderPreview({ target: 'b', baseline: 'a', editorOptions });
+
+    expect(mockDiffUpdateOptions).toHaveBeenCalledWith(editorOptions);
+    expect(mockOriginalUpdateOptions).toHaveBeenCalledWith(expect.objectContaining(editorOptions));
+    expect(mockModifiedUpdateOptions).toHaveBeenCalledWith(expect.objectContaining(editorOptions));
   });
 });

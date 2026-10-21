@@ -24,6 +24,10 @@ import {
   CHANGE_HISTORY_PREVIEW_NAVIGATOR_HEIGHT,
   ChangeHistoryDiffNavigator,
 } from './change_history_diff_navigator';
+import {
+  CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
+  ChangeHistoryPreviewFooterSpacer,
+} from './change_history_preview_footer';
 import { ChangeHistoryPreviewSettingsPopover } from './change_history_preview_settings_popover';
 import { buildChangeHistoryUnifiedDiffLayoutStyles } from './change_history_unified_diff_layout';
 import {
@@ -33,27 +37,23 @@ import {
   CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS,
   CHANGE_HISTORY_UNIFIED_DIFF_EDITOR_OPTIONS,
   CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS,
-  getChangeHistoryValidationDisplayOptions,
 } from './monaco_options';
 import type { ChangeHistoryMonacoTheme } from './monaco_theme';
 import { useResolveChangeHistoryMonacoTheme } from './monaco_theme';
-
-/** Collapsed footer row height. */
-export const CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT = '48px';
 
 const FLOATING_NAVIGATOR_BOTTOM = `calc(${CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT} - ${CHANGE_HISTORY_PREVIEW_NAVIGATOR_HEIGHT} / 2)`;
 
 const getDiffEditorOptions = (
   compareMode: ChangeHistoryCompareMode,
-  highlightValidationErrors: boolean,
-  theme: string
+  theme: string,
+  editorOptions: monaco.editor.IEditorOptions | undefined
 ): monaco.editor.IStandaloneDiffEditorConstructionOptions => ({
   ...CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS,
   theme,
   ...(compareMode === 'split'
     ? CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS
     : CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS),
-  ...getChangeHistoryValidationDisplayOptions(highlightValidationErrors),
+  ...editorOptions,
   renderSideBySide: compareMode === 'split',
   renderIndicators: compareMode === 'split',
 });
@@ -61,13 +61,13 @@ const getDiffEditorOptions = (
 const configureDiffEditors = (
   diffEditor: monaco.editor.IStandaloneDiffEditor,
   compareMode: ChangeHistoryCompareMode,
-  highlightValidationErrors: boolean
+  editorOptions: monaco.editor.IEditorOptions | undefined
 ): void => {
   const sharedChildOptions: monaco.editor.IEditorOptions & monaco.editor.IGlobalEditorOptions = {
     ...CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS,
     glyphMargin: false,
     folding: false,
-    ...getChangeHistoryValidationDisplayOptions(highlightValidationErrors),
+    ...editorOptions,
   };
 
   if (compareMode === 'split') {
@@ -136,20 +136,22 @@ const scrollDiffEditorToChange = (
 
 export type ChangeHistoryMonacoLanguage = 'json' | 'yaml' | 'plaintext';
 
-/** Editor handles and helpers a consumer needs to drive domain-specific validation of the preview. */
-export interface ChangeHistoryPreviewValidationContext {
-  highlightValidationErrors: boolean;
+/** Editor handles and helpers a consumer needs to extend the preview (e.g. validation in the footer). */
+export interface ChangeHistoryPreviewEditorContext {
   isEditorMounted: boolean;
   getActiveEditor: () => monaco.editor.IStandaloneCodeEditor | null;
   editorRef: MutableRefObject<monaco.editor.IStandaloneCodeEditor | null>;
   diffEditorRef: MutableRefObject<monaco.editor.IStandaloneDiffEditor | null>;
-  validationDecorationsRef: MutableRefObject<monaco.editor.IEditorDecorationsCollection | null>;
+  decorationsRef: MutableRefObject<monaco.editor.IEditorDecorationsCollection | null>;
   compareModeRef: MutableRefObject<ChangeHistoryCompareMode>;
-  /** Re-applies the unified/split child-editor options (stable identity). */
+  /**
+   * Re-applies the unified/split child-editor options, merged with `editorOptions` (stable
+   * identity). Pass `extraOptions` to apply options that are not yet part of the prop.
+   */
   configureDiffEditors: (
     diffEditor: monaco.editor.IStandaloneDiffEditor,
     compareMode: ChangeHistoryCompareMode,
-    highlightValidationErrors: boolean
+    extraOptions?: monaco.editor.IEditorOptions
   ) => void;
 }
 
@@ -169,14 +171,20 @@ export interface ChangeHistoryMonacoDiffPreviewProps {
    */
   monacoTheme?: ChangeHistoryMonacoTheme;
   /**
-   * Optional validation slot rendered in the footer. The returned node is always mounted, so
-   * it can react to `highlightValidationErrors` turning off; it should render nothing visible
-   * (or only the validation results) in that case. Providing it enables the "highlight
-   * validation errors" setting.
+   * Extra Monaco options applied to the editors (and both diff panes), e.g. to show validation
+   * squiggles. Keep the identity stable (memoize) to avoid reapplying on every render.
    */
-  renderValidation?: (context: ChangeHistoryPreviewValidationContext) => ReactNode;
-  /** Settings popover title and button label. Defaults to "Editor settings". */
-  settingsLabel?: string;
+  editorOptions?: monaco.editor.IEditorOptions;
+  /**
+   * Footer content. Always mounted, so it can run effects against the editors. Render
+   * `ChangeHistoryPreviewFooterSpacer` when there is nothing to show. Defaults to the spacer.
+   */
+  renderFooter?: (context: ChangeHistoryPreviewEditorContext) => ReactNode;
+  /**
+   * Additional settings rendered in the settings popover below the compare mode setting.
+   * Compose `ChangeHistoryPreviewSettingsSection`s. Without it, the popover only appears in diff mode.
+   */
+  extraSettings?: ReactNode;
   /** Extra Emotion styles for the preview root, e.g. to style validation decoration classes. */
   containerStyles?: (theme: UseEuiTheme) => Interpolation<Theme>;
   /** CSS height of the preview. Defaults to `100%`. */
@@ -194,8 +202,9 @@ export const ChangeHistoryMonacoDiffPreview = ({
   diffTelemetry,
   compareIndicator,
   monacoTheme: monacoThemeProp,
-  renderValidation,
-  settingsLabel,
+  editorOptions,
+  renderFooter,
+  extraSettings,
   containerStyles,
   height = '100%',
   'data-test-subj': dataTestSubj = 'changeHistoryMonacoPreview',
@@ -210,18 +219,16 @@ export const ChangeHistoryMonacoDiffPreview = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const validationDecorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+  const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
   const pendingDiffScrollIndexRef = useRef<number | null>(null);
   const [diffCurrentIndex, setDiffCurrentIndex] = useState(0);
   const [diffTotalChanges, setDiffTotalChanges] = useState(0);
   const [compareMode, setCompareMode] = useState<ChangeHistoryCompareMode>('unified');
   const compareModeRef = useRef(compareMode);
   compareModeRef.current = compareMode;
-  const [highlightValidationErrors, setHighlightValidationErrors] = useState(false);
-  const [isSettingsPopoverOpen, setIsSettingsPopoverOpen] = useState(false);
   const [isEditorMounted, setIsEditorMounted] = useState(false);
-  const highlightValidationErrorsRef = useRef(highlightValidationErrors);
-  highlightValidationErrorsRef.current = highlightValidationErrors;
+  const editorOptionsRef = useRef(editorOptions);
+  editorOptionsRef.current = editorOptions;
 
   const monacoTheme = useResolveChangeHistoryMonacoTheme(monacoThemeProp);
   const monacoThemeRef = useRef(monacoTheme);
@@ -242,18 +249,18 @@ export const ChangeHistoryMonacoDiffPreview = ({
     (
       diffEditor: monaco.editor.IStandaloneDiffEditor,
       mode: ChangeHistoryCompareMode,
-      highlight: boolean
-    ) => configureDiffEditorsRef.current(diffEditor, mode, highlight),
+      extraOptions?: monaco.editor.IEditorOptions
+    ) =>
+      configureDiffEditorsRef.current(diffEditor, mode, extraOptions ?? editorOptionsRef.current),
     []
   );
 
-  const validationContext: ChangeHistoryPreviewValidationContext = {
-    highlightValidationErrors,
+  const editorContext: ChangeHistoryPreviewEditorContext = {
     isEditorMounted,
     getActiveEditor,
     editorRef,
     diffEditorRef,
-    validationDecorationsRef,
+    decorationsRef,
     compareModeRef,
     configureDiffEditors: stableConfigureDiffEditors,
   };
@@ -296,11 +303,11 @@ export const ChangeHistoryMonacoDiffPreview = ({
       const modifiedModel = monaco.editor.createModel(targetYaml, language);
       const diffEditor = monaco.editor.createDiffEditor(
         container,
-        getDiffEditorOptions(mountCompareMode, false, monacoThemeRef.current)
+        getDiffEditorOptions(mountCompareMode, monacoThemeRef.current, editorOptionsRef.current)
       );
 
       diffEditor.setModel({ original: originalModel, modified: modifiedModel });
-      configureDiffEditors(diffEditor, mountCompareMode, false);
+      configureDiffEditors(diffEditor, mountCompareMode, editorOptionsRef.current);
       diffEditor.layout();
       diffEditorRef.current = diffEditor;
       editorRef.current = null;
@@ -324,8 +331,8 @@ export const ChangeHistoryMonacoDiffPreview = ({
         originalModel.dispose();
         modifiedModel.dispose();
         diffEditorRef.current = null;
-        validationDecorationsRef.current?.clear();
-        validationDecorationsRef.current = null;
+        decorationsRef.current?.clear();
+        decorationsRef.current = null;
         setIsEditorMounted(false);
       };
     }
@@ -333,7 +340,7 @@ export const ChangeHistoryMonacoDiffPreview = ({
     const model = monaco.editor.createModel(targetYaml, language);
     const editor = monaco.editor.create(container, {
       ...CHANGE_HISTORY_PREVIEW_MONACO_OPTIONS,
-      ...getChangeHistoryValidationDisplayOptions(false),
+      ...editorOptionsRef.current,
       theme: monacoThemeRef.current,
       model,
     });
@@ -349,8 +356,8 @@ export const ChangeHistoryMonacoDiffPreview = ({
       editor.dispose();
       model.dispose();
       editorRef.current = null;
-      validationDecorationsRef.current?.clear();
-      validationDecorationsRef.current = null;
+      decorationsRef.current?.clear();
+      decorationsRef.current = null;
       setIsEditorMounted(false);
     };
   }, [baselineYaml, language, monacoTheme, targetYaml, updateDiffState, useDiffEditor]);
@@ -361,15 +368,27 @@ export const ChangeHistoryMonacoDiffPreview = ({
       return;
     }
 
-    // Compare layout only — highlight squiggles/hover are owned by
-    // the consumer's validation slot (do not add highlightValidationErrors here).
     diffEditor.updateOptions({
       renderSideBySide: compareMode === 'split',
       renderIndicators: compareMode === 'split',
     });
-    configureDiffEditors(diffEditor, compareMode, highlightValidationErrorsRef.current);
+    configureDiffEditors(diffEditor, compareMode, editorOptionsRef.current);
     diffEditor.layout();
   }, [compareMode, useDiffEditor]);
+
+  // Consumer-supplied options (e.g. validation display) are applied after mount and on change.
+  useEffect(() => {
+    if (!isEditorMounted || !editorOptions) {
+      return;
+    }
+
+    editorRef.current?.updateOptions(editorOptions);
+    const diffEditor = diffEditorRef.current;
+    if (diffEditor) {
+      diffEditor.updateOptions(editorOptions);
+      configureDiffEditors(diffEditor, compareModeRef.current, editorOptions);
+    }
+  }, [editorOptions, isEditorMounted]);
 
   const handleDiffPrevious = useCallback(() => {
     const diffEditor = diffEditorRef.current;
@@ -415,6 +434,8 @@ export const ChangeHistoryMonacoDiffPreview = ({
 
   const showDiffNavigator = isCompareMode;
 
+  const hasSettings = isCompareMode || Boolean(extraSettings);
+
   return (
     <EuiFlexGroup
       direction="column"
@@ -444,27 +465,19 @@ export const ChangeHistoryMonacoDiffPreview = ({
       </EuiFlexItem>
       <EuiFlexItem css={styles.footer} grow={false}>
         <div css={styles.footerContent} data-test-subj={`${dataTestSubj}Footer`}>
-          {renderValidation?.(validationContext)}
-          {renderValidation && highlightValidationErrors ? null : (
-            <div css={styles.footerBarSpacer} aria-hidden={true} />
-          )}
+          {renderFooter ? renderFooter(editorContext) : <ChangeHistoryPreviewFooterSpacer />}
         </div>
-        <div css={styles.footerSettingsAnchor}>
-          <>
-            <>Test</>
+        {hasSettings ? (
+          <div css={styles.footerSettingsAnchor}>
             <ChangeHistoryPreviewSettingsPopover
               hasCompare={isCompareMode}
-              hasValidation={Boolean(renderValidation)}
-              settingsLabel={settingsLabel}
               compareMode={compareMode}
               onCompareModeChange={handleCompareModeChange}
-              highlightValidationErrors={highlightValidationErrors}
-              onHighlightValidationErrorsChange={setHighlightValidationErrors}
-              isOpen={isSettingsPopoverOpen}
-              onIsOpenChange={setIsSettingsPopoverOpen}
-            />
-          </>
-        </div>
+            >
+              {extraSettings}
+            </ChangeHistoryPreviewSettingsPopover>
+          </div>
+        ) : null}
       </EuiFlexItem>
       {showDiffNavigator ? (
         <EuiFlexItem css={styles.floatingToolbar} grow={false}>
@@ -537,12 +550,6 @@ const componentStyles = {
         backgroundColor: euiTheme.colors.backgroundBaseSubdued,
         borderTop: euiTheme.border.thin,
       },
-    }),
-  footerBarSpacer: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      minHeight: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
-      borderTop: euiTheme.border.thin,
-      backgroundColor: euiTheme.colors.backgroundBaseSubdued,
     }),
   footerSettingsAnchor: ({ euiTheme }: UseEuiTheme) =>
     css({

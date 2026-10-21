@@ -8,13 +8,16 @@
  */
 
 import React, { useEffect } from 'react';
-import type { ChangeHistoryPreviewValidationContext } from '@kbn/change-history-ui';
+import type { ChangeHistoryPreviewEditorContext } from '@kbn/change-history-ui';
+import { ChangeHistoryPreviewFooterSpacer } from '@kbn/change-history-ui';
 import { useWorkflowChangeHistoryPreviewValidation } from './use_workflow_change_history_preview_validation';
 import { WorkflowChangeHistoryPreviewFooter } from './workflow_change_history_preview_footer';
 import { clearWorkflowYamlComputationCache } from '../validate_workflow_yaml/lib/workflow_yaml_computation_cache';
 
 export interface WorkflowChangeHistoryPreviewValidationProps {
-  context: ChangeHistoryPreviewValidationContext;
+  context: ChangeHistoryPreviewEditorContext;
+  /** Whether validation results are highlighted in the editor and listed in the footer. */
+  highlightValidationErrors: boolean;
   /** YAML validated in the preview. */
   validationYaml: string;
 }
@@ -22,16 +25,23 @@ export interface WorkflowChangeHistoryPreviewValidationProps {
 /** Runs workflow YAML validation against the shared preview editors and renders the results footer. */
 export const WorkflowChangeHistoryPreviewValidation = ({
   context,
+  highlightValidationErrors,
   validationYaml,
-}: WorkflowChangeHistoryPreviewValidationProps): JSX.Element | null => {
-  const { highlightValidationErrors, isEditorMounted } = context;
+}: WorkflowChangeHistoryPreviewValidationProps): JSX.Element => {
+  const { decorationsRef, isEditorMounted, ...editorContext } = context;
   const { validationResults, isValidationLoading, validationError, handleValidationErrorClick } =
-    useWorkflowChangeHistoryPreviewValidation({ ...context, validationYaml });
+    useWorkflowChangeHistoryPreviewValidation({
+      ...editorContext,
+      isEditorMounted,
+      validationDecorationsRef: decorationsRef,
+      highlightValidationErrors,
+      validationYaml,
+    });
 
   useEffect(() => () => clearWorkflowYamlComputationCache(), []);
 
   if (!highlightValidationErrors) {
-    return null;
+    return <ChangeHistoryPreviewFooterSpacer />;
   }
 
   return (

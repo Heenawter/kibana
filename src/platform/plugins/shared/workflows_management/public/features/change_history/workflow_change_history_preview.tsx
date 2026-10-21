@@ -10,17 +10,16 @@
 import { transparentize } from '@elastic/eui';
 import type { UseEuiTheme } from '@elastic/eui';
 import { css } from '@emotion/react';
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import type { ChangeHistoryPreviewRenderFn } from '@kbn/change-history-ui';
-import { ChangeHistoryMonacoDiffPreview } from '@kbn/change-history-ui';
-import { i18n } from '@kbn/i18n';
+import {
+  ChangeHistoryMonacoDiffPreview,
+  getChangeHistoryValidationDisplayOptions,
+} from '@kbn/change-history-ui';
 import { getWorkflowChangeHistoryCompareIndicator } from './get_workflow_change_history_compare_indicator';
 import { getWorkflowYamlFromSnapshot } from './get_workflow_yaml_from_snapshot';
+import { WorkflowChangeHistoryPreviewSettings } from './workflow_change_history_preview_settings';
 import { WorkflowChangeHistoryPreviewValidation } from './workflow_change_history_preview_validation';
-
-const SETTINGS_LABEL = i18n.translate('workflows.changeHistory.preview.settings.label', {
-  defaultMessage: 'YAML editor settings',
-});
 
 const getYamlFromChange = (change: Parameters<ChangeHistoryPreviewRenderFn>[0]['change']): string =>
   getWorkflowYamlFromSnapshot(change.snapshot);
@@ -62,21 +61,40 @@ const WorkflowChangeHistoryPreview = ({
   targetYaml,
   compareIndicator,
   diffTelemetry,
-}: WorkflowChangeHistoryPreviewProps): JSX.Element => (
-  <ChangeHistoryMonacoDiffPreview
-    baseline={baselineYaml}
-    target={targetYaml}
-    language="yaml"
-    settingsLabel={SETTINGS_LABEL}
-    diffTelemetry={diffTelemetry}
-    compareIndicator={compareIndicator}
-    containerStyles={validationDecorationStyles}
-    renderValidation={(context) => (
-      <WorkflowChangeHistoryPreviewValidation context={context} validationYaml={targetYaml} />
-    )}
-    data-test-subj="workflowChangeHistoryMonacoPreview"
-  />
-);
+}: WorkflowChangeHistoryPreviewProps): JSX.Element => {
+  const [highlightValidationErrors, setHighlightValidationErrors] = useState(false);
+  // Read-only editors hide validation squiggles and hovers unless explicitly enabled.
+  const editorOptions = useMemo(
+    () => getChangeHistoryValidationDisplayOptions(highlightValidationErrors),
+    [highlightValidationErrors]
+  );
+
+  return (
+    <ChangeHistoryMonacoDiffPreview
+      baseline={baselineYaml}
+      target={targetYaml}
+      language="yaml"
+      diffTelemetry={diffTelemetry}
+      compareIndicator={compareIndicator}
+      containerStyles={validationDecorationStyles}
+      editorOptions={editorOptions}
+      extraSettings={
+        <WorkflowChangeHistoryPreviewSettings
+          highlightValidationErrors={highlightValidationErrors}
+          onHighlightValidationErrorsChange={setHighlightValidationErrors}
+        />
+      }
+      renderFooter={(context) => (
+        <WorkflowChangeHistoryPreviewValidation
+          context={context}
+          highlightValidationErrors={highlightValidationErrors}
+          validationYaml={targetYaml}
+        />
+      )}
+      data-test-subj="workflowChangeHistoryMonacoPreview"
+    />
+  );
+};
 
 export const renderWorkflowChangeHistoryPreview: ChangeHistoryPreviewRenderFn = ({
   change,

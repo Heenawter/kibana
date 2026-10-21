@@ -8,203 +8,53 @@
 import type { UseEuiTheme } from '@elastic/eui';
 import {
   EuiButtonIcon,
-  EuiCheckbox,
   EuiHorizontalRule,
   EuiPopover,
   EuiText,
   EuiToolTip,
-  transparentize,
-  useEuiTheme,
   useGeneratedHtmlId,
 } from '@elastic/eui';
-import { ClassNames, css } from '@emotion/react';
-import React, { useCallback, useEffect, useRef } from 'react';
+import { css } from '@emotion/react';
+import type { ReactNode } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import { i18n } from '@kbn/i18n';
 import type { ChangeHistoryCompareMode } from '../../telemetry';
+import { ChangeHistoryCompareModeSetting } from './change_history_compare_mode_setting';
 import { changeHistoryPreviewTypography } from './change_history_preview_typography';
 
-const COMPARE_MODES: ChangeHistoryCompareMode[] = ['unified', 'split'];
-
-const COMPARE_TILE_WIDTH = 110;
-const COMPARE_TILE_HEIGHT = 100;
-const COMPARE_TILE_ILLUSTRATION_HEIGHT = 58;
-const COMPARE_TILE_FOOTER_HEIGHT = COMPARE_TILE_HEIGHT - COMPARE_TILE_ILLUSTRATION_HEIGHT - 1;
-
-const PANEL_HEADER_PADDING = 12;
 const PANEL_SECTION_PADDING = 16;
-const SECTION_LABEL_GAP = 8;
-const TILE_GAP = 16;
-const TILE_FOOTER_PADDING_X = 10;
-const SELECTED_TILE_TINT_ALPHA = 0.04;
 
 const PANEL_CLASS = 'changeHistoryPreviewSettingsPopoverPanel';
 const SETTINGS_BUTTON_TEST_SUBJ = 'changeHistoryPreviewSettingsButton';
 
-const ILLUSTRATION_BAR_HEIGHT = 8;
-const ILLUSTRATION_BAR_GROUP_HEIGHT = 36;
-const ILLUSTRATION_BAR_TOP = (COMPARE_TILE_ILLUSTRATION_HEIGHT - ILLUSTRATION_BAR_GROUP_HEIGHT) / 2;
-const ILLUSTRATION_BAR_ROW_OFFSETS = [0, 14, 28] as const;
-
-interface CompareModeIllustrationProps {
-  mode: ChangeHistoryCompareMode;
-  borderColor: string;
-  addedColor: string;
-  removedColor: string;
-}
-
-const CompareModeIllustration = ({
-  mode,
-  borderColor,
-  addedColor,
-  removedColor,
-}: CompareModeIllustrationProps): JSX.Element => {
-  const barY = (rowIndex: number): number =>
-    ILLUSTRATION_BAR_TOP + ILLUSTRATION_BAR_ROW_OFFSETS[rowIndex];
-
-  if (mode === 'unified') {
-    return (
-      <svg
-        width="80"
-        height={COMPARE_TILE_ILLUSTRATION_HEIGHT}
-        viewBox={`0 0 80 ${COMPARE_TILE_ILLUSTRATION_HEIGHT}`}
-        aria-hidden={true}
-        data-test-subj={`changeHistoryCompareIllustration-${mode}`}
-      >
-        <rect
-          x="0"
-          y={barY(0)}
-          width="80"
-          height={ILLUSTRATION_BAR_HEIGHT}
-          rx="4"
-          fill={addedColor}
-        />
-        <rect
-          x="0"
-          y={barY(1)}
-          width="60"
-          height={ILLUSTRATION_BAR_HEIGHT}
-          rx="4"
-          fill={addedColor}
-        />
-        <rect
-          x="0"
-          y={barY(2)}
-          width="80"
-          height={ILLUSTRATION_BAR_HEIGHT}
-          rx="4"
-          fill={removedColor}
-        />
-      </svg>
-    );
-  }
-
-  return (
-    <svg
-      width="86"
-      height={COMPARE_TILE_ILLUSTRATION_HEIGHT}
-      viewBox={`0 0 86 ${COMPARE_TILE_ILLUSTRATION_HEIGHT}`}
-      aria-hidden={true}
-      data-test-subj={`changeHistoryCompareIllustration-${mode}`}
-    >
-      <line
-        x1="43"
-        y1="0"
-        x2="43"
-        y2={COMPARE_TILE_ILLUSTRATION_HEIGHT}
-        stroke={borderColor}
-        strokeWidth="1"
-      />
-      <rect
-        x="0"
-        y={barY(0)}
-        width="33"
-        height={ILLUSTRATION_BAR_HEIGHT}
-        rx="4"
-        fill={addedColor}
-      />
-      <rect
-        x="53"
-        y={barY(0)}
-        width="32"
-        height={ILLUSTRATION_BAR_HEIGHT}
-        rx="4"
-        fill={removedColor}
-      />
-      <rect
-        x="0"
-        y={barY(1)}
-        width="33"
-        height={ILLUSTRATION_BAR_HEIGHT}
-        rx="4"
-        fill={addedColor}
-      />
-      <rect
-        x="53"
-        y={barY(1)}
-        width="32"
-        height={ILLUSTRATION_BAR_HEIGHT}
-        rx="4"
-        fill={removedColor}
-      />
-      <rect
-        x="0"
-        y={barY(2)}
-        width="26"
-        height={ILLUSTRATION_BAR_HEIGHT}
-        rx="4"
-        fill={addedColor}
-      />
-      <rect
-        x="53"
-        y={barY(2)}
-        width="26"
-        height={ILLUSTRATION_BAR_HEIGHT}
-        rx="4"
-        fill={removedColor}
-      />
-    </svg>
-  );
-};
-
 export interface ChangeHistoryPreviewSettingsPopoverProps {
+  /** Whether a diff is shown. The compare mode setting is only rendered in diff mode. */
   hasCompare: boolean;
   compareMode: ChangeHistoryCompareMode;
   onCompareModeChange: (compareMode: ChangeHistoryCompareMode) => void;
-  /** Shows the "highlight validation errors" toggle; omit when the consumer has no validation. */
-  hasValidation: boolean;
-  /** Popover title and button label. Defaults to "Editor settings". */
-  settingsLabel?: string;
-  highlightValidationErrors: boolean;
-  onHighlightValidationErrorsChange: (highlightValidationErrors: boolean) => void;
-  isOpen: boolean;
-  onIsOpenChange: (isOpen: boolean) => void;
+  /** Additional settings rendered below the compare mode setting; compose `ChangeHistoryPreviewSettingsSection`s. */
+  children?: ReactNode;
 }
 
+/**
+ * Settings button + popover for the preview footer. Always starts with the compare mode setting
+ * (diff mode); sections are separated by a divider.
+ */
 export const ChangeHistoryPreviewSettingsPopover = ({
   hasCompare,
   compareMode,
   onCompareModeChange,
-  hasValidation,
-  settingsLabel: settingsLabelProp,
-  highlightValidationErrors,
-  onHighlightValidationErrorsChange,
-  isOpen,
-  onIsOpenChange,
+  children,
 }: ChangeHistoryPreviewSettingsPopoverProps): JSX.Element => {
-  const { euiTheme } = useEuiTheme();
   const styles = useMemoCss(componentStyles);
-  const unifiedTileRef = useRef<HTMLButtonElement>(null);
-  const splitTileRef = useRef<HTMLButtonElement>(null);
-
+  const [isOpen, setIsOpen] = useState(false);
   const popoverTitleId = useGeneratedHtmlId({
     prefix: 'changeHistoryPreviewSettingsTitle',
   });
-  const highlightValidationId = useGeneratedHtmlId({
-    prefix: 'changeHistoryHighlightValidation',
-  });
-  const compareModeGroupLabelId = useGeneratedHtmlId({
-    prefix: 'changeHistoryCompareModeGroup',
+
+  const settingsLabel = i18n.translate('xpack.changeHistoryUi.preview.settings.label', {
+    defaultMessage: 'Settings',
   });
 
   // Monaco can swallow bubble-phase outside clicks; close only on true outside mousedown.
@@ -224,152 +74,19 @@ export const ChangeHistoryPreviewSettingsPopover = ({
       if (target.closest(`.${PANEL_CLASS}`)) {
         return;
       }
-      onIsOpenChange(false);
+      setIsOpen(false);
     };
 
     document.addEventListener('mousedown', handler, true);
     return () => document.removeEventListener('mousedown', handler, true);
-  }, [isOpen, onIsOpenChange]);
-
-  const handleHighlightValidationErrorsChange = useCallback(
-    (checked: boolean): void => {
-      onHighlightValidationErrorsChange(checked);
-      // Intentionally keep the popover open (same as compare mode tiles).
-    },
-    [onHighlightValidationErrorsChange]
-  );
-
-  const defaultSettingsLabel = i18n.translate('xpack.changeHistoryUi.preview.settings.label', {
-    defaultMessage: 'Editor settings',
-  });
-  const settingsLabel = settingsLabelProp ?? defaultSettingsLabel;
-
-  const codeComparingLabel = i18n.translate(
-    'xpack.changeHistoryUi.preview.settings.codeComparing',
-    { defaultMessage: 'Code comparing' }
-  );
-
-  const unifiedLabel = i18n.translate('xpack.changeHistoryUi.preview.settings.unified', {
-    defaultMessage: 'Unified',
-  });
-
-  const splitLabel = i18n.translate('xpack.changeHistoryUi.preview.settings.split', {
-    defaultMessage: 'Split',
-  });
-
-  const focusCompareTile = useCallback((mode: ChangeHistoryCompareMode): void => {
-    (mode === 'unified' ? unifiedTileRef : splitTileRef).current?.focus();
-  }, []);
-
-  const selectCompareMode = useCallback(
-    (mode: ChangeHistoryCompareMode, shouldFocus = false): void => {
-      onCompareModeChange(mode);
-      // Intentionally keep the popover open so users can switch unified/split without reopening.
-      if (shouldFocus) {
-        focusCompareTile(mode);
-      }
-    },
-    [focusCompareTile, onCompareModeChange]
-  );
-
-  const handleCompareTileKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLButtonElement>, mode: ChangeHistoryCompareMode): void => {
-      const currentIndex = COMPARE_MODES.indexOf(compareMode);
-
-      switch (event.key) {
-        case 'ArrowLeft':
-        case 'ArrowUp':
-          event.preventDefault();
-          selectCompareMode(COMPARE_MODES[Math.max(0, currentIndex - 1)], true);
-          return;
-        case 'ArrowRight':
-        case 'ArrowDown':
-          event.preventDefault();
-          selectCompareMode(
-            COMPARE_MODES[Math.min(COMPARE_MODES.length - 1, currentIndex + 1)],
-            true
-          );
-          return;
-        case 'Home':
-          event.preventDefault();
-          selectCompareMode('unified', true);
-          return;
-        case 'End':
-          event.preventDefault();
-          selectCompareMode('split', true);
-          return;
-        case ' ':
-        case 'Enter':
-          event.preventDefault();
-          selectCompareMode(mode, true);
-      }
-    },
-    [compareMode, selectCompareMode]
-  );
-
-  const renderCompareTile = (
-    mode: ChangeHistoryCompareMode,
-    label: string,
-    testSubj: string,
-    tileRef: React.RefObject<HTMLButtonElement>
-  ): JSX.Element => {
-    const isSelected = compareMode === mode;
-
-    return (
-      <ClassNames>
-        {({ css: cssClassName }) => (
-          <button
-            ref={tileRef}
-            type="button"
-            role="radio"
-            aria-checked={isSelected}
-            tabIndex={isSelected ? 0 : -1}
-            className={cssClassName(styles.compareTile, isSelected && styles.compareTileSelected)}
-            data-test-subj={testSubj}
-            aria-label={label}
-            onClick={() => selectCompareMode(mode)}
-            onKeyDown={(event: React.KeyboardEvent<HTMLButtonElement>) =>
-              handleCompareTileKeyDown(event, mode)
-            }
-          >
-            {isSelected ? (
-              <EuiText
-                component="span"
-                css={styles.compareTileSelectedOverlay}
-                aria-hidden={true}
-              />
-            ) : null}
-            <EuiText component="span" css={styles.compareTileIllustration} aria-hidden={true}>
-              <CompareModeIllustration
-                mode={mode}
-                borderColor={euiTheme.colors.borderBasePlain}
-                addedColor={euiTheme.colors.success}
-                removedColor={euiTheme.colors.danger}
-              />
-            </EuiText>
-            <EuiText component="span" css={styles.compareTileDivider} aria-hidden={true} />
-            <EuiText component="span" css={styles.compareTileFooter}>
-              <EuiText
-                component="span"
-                css={[styles.radioCircle, isSelected && styles.radioCircleSelected]}
-                aria-hidden={true}
-              />
-              <EuiText component="span" css={styles.compareTileLabel}>
-                {label}
-              </EuiText>
-            </EuiText>
-          </button>
-        )}
-      </ClassNames>
-    );
-  };
+  }, [isOpen]);
 
   return (
     <EuiPopover
       data-test-subj="changeHistoryPreviewSettingsPopover"
       aria-labelledby={popoverTitleId}
       isOpen={isOpen}
-      closePopover={() => onIsOpenChange(false)}
+      closePopover={() => setIsOpen(false)}
       anchorPosition="upRight"
       panelPaddingSize="none"
       panelClassName={PANEL_CLASS}
@@ -381,61 +98,41 @@ export const ChangeHistoryPreviewSettingsPopover = ({
             size="s"
             iconType="controls"
             color="primary"
-            data-test-subj="changeHistoryPreviewSettingsButton"
-            onClick={() => onIsOpenChange(!isOpen)}
+            data-test-subj={SETTINGS_BUTTON_TEST_SUBJ}
+            onClick={() => setIsOpen(!isOpen)}
             aria-label={settingsLabel}
           />
         </EuiToolTip>
       }
     >
       <EuiText component="div" css={styles.panel}>
-        <EuiText component="div" css={styles.header}>
-          <EuiText component="span" id={popoverTitleId} css={styles.title}>
-            {settingsLabel}
-          </EuiText>
-        </EuiText>
-
         <EuiHorizontalRule margin="none" />
 
-        {hasCompare ? (
-          <EuiText component="div" css={styles.compareSection}>
-            <EuiText component="span" css={styles.sectionLabel} id={compareModeGroupLabelId}>
-              {codeComparingLabel}
-            </EuiText>
-
-            <EuiText
-              component="div"
-              css={styles.compareTileGroup}
-              role="radiogroup"
-              aria-labelledby={compareModeGroupLabelId}
-            >
-              {renderCompareTile(
-                'unified',
-                unifiedLabel,
-                'changeHistoryCompareUnified',
-                unifiedTileRef
-              )}
-              {renderCompareTile('split', splitLabel, 'changeHistoryCompareSplit', splitTileRef)}
-            </EuiText>
-          </EuiText>
-        ) : null}
-
-        {hasValidation ? (
-          <EuiText component="div" css={styles.checkboxSection}>
-            <EuiCheckbox
-              id={highlightValidationId}
-              data-test-subj="changeHistoryHighlightValidationErrors"
-              label={i18n.translate(
-                'xpack.changeHistoryUi.preview.settings.highlightValidationErrors',
-                { defaultMessage: 'Highlight the validation errors' }
-              )}
-              checked={highlightValidationErrors}
-              onChange={(event) => handleHighlightValidationErrorsChange(event.target.checked)}
+        <div css={styles.sections}>
+          {hasCompare ? (
+            <ChangeHistoryCompareModeSetting
+              compareMode={compareMode}
+              onCompareModeChange={onCompareModeChange}
             />
-          </EuiText>
-        ) : null}
+          ) : null}
+          {children}
+        </div>
       </EuiText>
     </EuiPopover>
+  );
+};
+
+/** Padded block for a group of related settings inside the popover. */
+export const ChangeHistoryPreviewSettingsSection = ({
+  children,
+}: {
+  children: ReactNode;
+}): JSX.Element => {
+  const styles = useMemoCss(componentStyles);
+  return (
+    <EuiText component="div" css={styles.section}>
+      {children}
+    </EuiText>
   );
 };
 
@@ -447,135 +144,13 @@ const componentStyles = {
       borderRadius: euiTheme.border.radius.medium,
       overflow: 'hidden',
     }),
-  header: css({
-    padding: `${PANEL_HEADER_PADDING}px`,
-  }),
-  title: css`
-    ${changeHistoryPreviewTypography}
-    margin: 0;
-    font-weight: var(--Font-weight-Semi-bold, 600);
-    font-size: 14px;
-    line-height: 20px;
-  `,
-  compareSection: ({ euiTheme }: UseEuiTheme) =>
+  sections: ({ euiTheme }: UseEuiTheme) =>
     css({
-      display: 'flex',
-      flexDirection: 'column',
-      gap: `${SECTION_LABEL_GAP}px`,
-      padding: `${PANEL_SECTION_PADDING}px`,
-      borderBottom: euiTheme.border.thin,
-    }),
-  sectionLabel: css({
-    fontWeight: 400,
-    fontSize: '14px',
-    lineHeight: '20px',
-    color: 'inherit',
-  }),
-  compareTileGroup: css({
-    display: 'grid',
-    gridTemplateColumns: `repeat(2, ${COMPARE_TILE_WIDTH}px)`,
-    gap: `${TILE_GAP}px`,
-    width: 'fit-content',
-  }),
-  compareTile: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      position: 'relative',
-      display: 'flex',
-      flexDirection: 'column',
-      width: `${COMPARE_TILE_WIDTH}px`,
-      height: `${COMPARE_TILE_HEIGHT}px`,
-      minWidth: `${COMPARE_TILE_WIDTH}px`,
-      maxWidth: `${COMPARE_TILE_WIDTH}px`,
-      padding: 0,
-      border: euiTheme.border.thin,
-      borderRadius: '8px',
-      overflow: 'hidden',
-      cursor: 'pointer',
-      backgroundColor: euiTheme.colors.backgroundBasePlain,
-      textAlign: 'left',
-      appearance: 'none',
-      font: 'inherit',
-      color: 'inherit',
-
-      '&:focus-visible': {
-        outline: `${euiTheme.focus.width} solid ${euiTheme.focus.color}`,
-        outlineOffset: 0,
+      '& > * + *': {
+        borderTop: euiTheme.border.thin,
       },
     }),
-  compareTileSelected: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      borderColor: euiTheme.colors.borderBasePrimary,
-    }),
-  compareTileSelectedOverlay: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      position: 'absolute',
-      inset: 0,
-      zIndex: 0,
-      borderRadius: '7px',
-      backgroundColor: transparentize(euiTheme.colors.primary, SELECTED_TILE_TINT_ALPHA),
-      pointerEvents: 'none',
-    }),
-  compareTileIllustration: css({
-    position: 'relative',
-    zIndex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: `0 0 ${COMPARE_TILE_ILLUSTRATION_HEIGHT}px`,
-    width: '100%',
-    height: `${COMPARE_TILE_ILLUSTRATION_HEIGHT}px`,
-    overflow: 'hidden',
-
-    svg: {
-      display: 'block',
-      flexShrink: 0,
-    },
-  }),
-  compareTileDivider: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      position: 'relative',
-      zIndex: 1,
-      flexShrink: 0,
-      height: '1px',
-      width: '100%',
-      backgroundColor: euiTheme.colors.borderBasePlain,
-    }),
-  compareTileFooter: css({
-    position: 'relative',
-    zIndex: 1,
-    display: 'flex',
-    flex: `0 0 ${COMPARE_TILE_FOOTER_HEIGHT}px`,
-    alignItems: 'center',
-    gap: '6px',
-    width: '100%',
-    height: `${COMPARE_TILE_FOOTER_HEIGHT}px`,
-    padding: `0 ${TILE_FOOTER_PADDING_X}px`,
-    boxSizing: 'border-box',
-  }),
-  radioCircle: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      width: '16px',
-      height: '16px',
-      flexShrink: 0,
-      borderRadius: '50%',
-      border: `1px solid ${euiTheme.colors.borderBasePlain}`,
-      backgroundColor: euiTheme.colors.backgroundBasePlain,
-      boxSizing: 'border-box',
-    }),
-  radioCircleSelected: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      borderColor: euiTheme.colors.primary,
-      backgroundColor: euiTheme.colors.primary,
-      boxShadow: `inset 0 0 0 3px ${euiTheme.colors.backgroundBasePlain}`,
-    }),
-  compareTileLabel: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      fontWeight: euiTheme.font.weight.bold,
-      fontSize: '14px',
-      lineHeight: '20px',
-      color: euiTheme.colors.textParagraph,
-    }),
-  checkboxSection: css({
+  section: css({
     padding: `${PANEL_SECTION_PADDING}px`,
   }),
 };

@@ -63,7 +63,7 @@ export interface UseWorkflowChangeHistoryPreviewValidationParams {
   configureDiffEditors: (
     diffEditor: monaco.editor.IStandaloneDiffEditor,
     compareMode: ChangeHistoryCompareMode,
-    highlightValidationErrors: boolean
+    extraOptions?: monaco.editor.IEditorOptions
   ) => void;
 }
 
@@ -178,7 +178,7 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       const diffEditor = diffEditorRef.current;
       if (diffEditor) {
         diffEditor.updateOptions(displayOptions);
-        configureDiffEditors(diffEditor, compareModeRef.current, highlight);
+        configureDiffEditors(diffEditor, compareModeRef.current, displayOptions);
       }
     },
     [compareModeRef, configureDiffEditors, diffEditorRef, editorRef]

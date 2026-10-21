@@ -5,14 +5,16 @@
  * 2.0.
  */
 
+export { ChangeHistoryMonacoDiffPreview } from './change_history_monaco_diff_preview';
 export {
-  ChangeHistoryMonacoDiffPreview,
   CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
-} from './change_history_monaco_diff_preview';
+  ChangeHistoryPreviewFooterSpacer,
+} from './change_history_preview_footer';
+export { ChangeHistoryPreviewSettingsSection } from './change_history_preview_settings_popover';
 export type {
   ChangeHistoryMonacoDiffPreviewProps,
   ChangeHistoryMonacoLanguage,
-  ChangeHistoryPreviewValidationContext,
+  ChangeHistoryPreviewEditorContext,
 } from './change_history_monaco_diff_preview';
 export type {
   ChangeHistoryCompareBadgeColor,
