@@ -25,3 +25,9 @@ export {
   CHANGE_HISTORY_UNIFIED_DIFF_EDITOR_OPTIONS,
   CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS,
 } from './monaco_options';
+export { createChangeHistoryEuiMonacoTheme, euiChangeHistoryMonacoTheme } from './monaco_theme';
+export type {
+  ChangeHistoryMonacoTheme,
+  ChangeHistoryMonacoThemeDefinition,
+  CreateChangeHistoryEuiMonacoThemeOptions,
+} from './monaco_theme';

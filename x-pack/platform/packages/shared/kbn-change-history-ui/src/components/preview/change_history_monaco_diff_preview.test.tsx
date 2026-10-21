@@ -125,6 +125,9 @@ const sampleValidationError: MockValidationResult = {
   message: 'Invalid document',
 };
 
+const testThemeData = { base: 'vs' as const, inherit: true, rules: [], colors: {} };
+const testThemeDefinition = { id: 'test-theme', getDefinition: () => testThemeData };
+
 const renderPreview = (props: React.ComponentProps<typeof ChangeHistoryMonacoDiffPreview>) =>
   render(
     <TestProvider>
@@ -509,6 +512,49 @@ describe('ChangeHistoryMonacoDiffPreview', () => {
     expect(mockCreateEditor).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ theme: 'my-theme' })
+    );
+  });
+
+  it('uses a custom settings label when provided and "Editor settings" otherwise', () => {
+    jest.useFakeTimers();
+    const { unmount } = renderPreview({ target: 'name: current\n' });
+    expect(screen.getByTestId('changeHistoryPreviewSettingsButton')).toHaveAttribute(
+      'aria-label',
+      'Editor settings'
+    );
+    unmount();
+
+    renderPreview({ target: 'name: current\n', settingsLabel: 'YAML editor settings' });
+    expect(screen.getByTestId('changeHistoryPreviewSettingsButton')).toHaveAttribute(
+      'aria-label',
+      'YAML editor settings'
+    );
+  });
+
+  it('registers and uses the EUI theme by default', () => {
+    jest.useFakeTimers();
+    renderPreview({ target: 'name: current\n' });
+
+    expect(monaco.editor.defineTheme).toHaveBeenCalledWith(
+      'change-history-eui',
+      expect.objectContaining({
+        colors: expect.objectContaining({ 'editor.background': '#00000000' }),
+      })
+    );
+    expect(mockCreateEditor).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ theme: 'change-history-eui' })
+    );
+  });
+
+  it('registers a theme definition and uses its id', () => {
+    jest.useFakeTimers();
+    renderPreview({ target: 'name: current\n', monacoTheme: testThemeDefinition });
+
+    expect(monaco.editor.defineTheme).toHaveBeenCalledWith('test-theme', testThemeData);
+    expect(mockCreateEditor).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ theme: 'test-theme' })
     );
   });
 });

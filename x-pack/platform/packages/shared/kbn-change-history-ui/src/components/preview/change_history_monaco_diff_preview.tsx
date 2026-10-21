@@ -35,11 +35,11 @@ import {
   CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS,
   getChangeHistoryValidationDisplayOptions,
 } from './monaco_options';
+import type { ChangeHistoryMonacoTheme } from './monaco_theme';
+import { useResolveChangeHistoryMonacoTheme } from './monaco_theme';
 
 /** Collapsed footer row height. */
 export const CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT = '48px';
-
-const DEFAULT_MONACO_THEME_PREFIX = 'change-history';
 
 const FLOATING_NAVIGATOR_BOTTOM = `calc(${CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT} - ${CHANGE_HISTORY_PREVIEW_NAVIGATOR_HEIGHT} / 2)`;
 
@@ -163,8 +163,11 @@ export interface ChangeHistoryMonacoDiffPreviewProps {
   diffTelemetry?: ChangeHistoryDiffTelemetry;
   /** Version labels shown above the diff panes. */
   compareIndicator?: ChangeHistoryCompareIndicator;
-  /** Pre-registered Monaco theme id. Defaults to a theme the component defines from the EUI theme. */
-  monacoTheme?: string;
+  /**
+   * Monaco theme: the id of a registered theme, or a definition the component registers (see
+   * `createChangeHistoryEuiMonacoTheme` to extend the default). Defaults to the EUI theme.
+   */
+  monacoTheme?: ChangeHistoryMonacoTheme;
   /**
    * Optional validation slot rendered in the footer. The returned node is always mounted, so
    * it can react to `highlightValidationErrors` turning off; it should render nothing visible
@@ -172,6 +175,8 @@ export interface ChangeHistoryMonacoDiffPreviewProps {
    * validation errors" setting.
    */
   renderValidation?: (context: ChangeHistoryPreviewValidationContext) => ReactNode;
+  /** Settings popover title and button label. Defaults to "Editor settings". */
+  settingsLabel?: string;
   /** Extra Emotion styles for the preview root, e.g. to style validation decoration classes. */
   containerStyles?: (theme: UseEuiTheme) => Interpolation<Theme>;
   /** CSS height of the preview. Defaults to `100%`. */
@@ -190,13 +195,13 @@ export const ChangeHistoryMonacoDiffPreview = ({
   compareIndicator,
   monacoTheme: monacoThemeProp,
   renderValidation,
+  settingsLabel,
   containerStyles,
   height = '100%',
   'data-test-subj': dataTestSubj = 'changeHistoryMonacoPreview',
 }: ChangeHistoryMonacoDiffPreviewProps): JSX.Element => {
   const styles = useMemoCss(componentStyles);
   const euiThemeContext = useEuiTheme();
-  const { euiTheme, colorMode } = euiThemeContext;
   const baselineYaml = useMemo(
     () => (baseline === undefined ? undefined : toText(baseline)),
     [baseline]
@@ -218,23 +223,9 @@ export const ChangeHistoryMonacoDiffPreview = ({
   const highlightValidationErrorsRef = useRef(highlightValidationErrors);
   highlightValidationErrorsRef.current = highlightValidationErrors;
 
-  const defaultMonacoTheme = `${DEFAULT_MONACO_THEME_PREFIX}-${colorMode.toLowerCase()}`;
-  const monacoTheme = monacoThemeProp ?? defaultMonacoTheme;
+  const monacoTheme = useResolveChangeHistoryMonacoTheme(monacoThemeProp);
   const monacoThemeRef = useRef(monacoTheme);
   monacoThemeRef.current = monacoTheme;
-
-  useLayoutEffect(() => {
-    if (monacoThemeProp) {
-      return;
-    }
-
-    monaco.editor.defineTheme(defaultMonacoTheme, {
-      base: colorMode === 'DARK' ? 'vs-dark' : 'vs',
-      inherit: true,
-      rules: [],
-      colors: { 'editor.background': euiTheme.components.codeBackground },
-    });
-  }, [colorMode, defaultMonacoTheme, euiTheme.components.codeBackground, monacoThemeProp]);
 
   const isCompareMode = baselineYaml !== undefined;
   const useDiffEditor = isCompareMode;
@@ -464,6 +455,7 @@ export const ChangeHistoryMonacoDiffPreview = ({
             <ChangeHistoryPreviewSettingsPopover
               hasCompare={isCompareMode}
               hasValidation={Boolean(renderValidation)}
+              settingsLabel={settingsLabel}
               compareMode={compareMode}
               onCompareModeChange={handleCompareModeChange}
               highlightValidationErrors={highlightValidationErrors}

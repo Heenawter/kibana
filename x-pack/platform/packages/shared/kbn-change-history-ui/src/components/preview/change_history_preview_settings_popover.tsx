@@ -173,6 +173,8 @@ export interface ChangeHistoryPreviewSettingsPopoverProps {
   onCompareModeChange: (compareMode: ChangeHistoryCompareMode) => void;
   /** Shows the "highlight validation errors" toggle; omit when the consumer has no validation. */
   hasValidation: boolean;
+  /** Popover title and button label. Defaults to "Editor settings". */
+  settingsLabel?: string;
   highlightValidationErrors: boolean;
   onHighlightValidationErrorsChange: (highlightValidationErrors: boolean) => void;
   isOpen: boolean;
@@ -184,6 +186,7 @@ export const ChangeHistoryPreviewSettingsPopover = ({
   compareMode,
   onCompareModeChange,
   hasValidation,
+  settingsLabel: settingsLabelProp,
   highlightValidationErrors,
   onHighlightValidationErrorsChange,
   isOpen,
@@ -236,20 +239,21 @@ export const ChangeHistoryPreviewSettingsPopover = ({
     [onHighlightValidationErrorsChange]
   );
 
-  const settingsLabel = i18n.translate('xpack.changeHistoryUi.preview.preview.settings.label', {
+  const defaultSettingsLabel = i18n.translate('xpack.changeHistoryUi.preview.settings.label', {
     defaultMessage: 'Editor settings',
   });
+  const settingsLabel = settingsLabelProp ?? defaultSettingsLabel;
 
   const codeComparingLabel = i18n.translate(
-    'xpack.changeHistoryUi.preview.preview.settings.codeComparing',
+    'xpack.changeHistoryUi.preview.settings.codeComparing',
     { defaultMessage: 'Code comparing' }
   );
 
-  const unifiedLabel = i18n.translate('xpack.changeHistoryUi.preview.preview.settings.unified', {
+  const unifiedLabel = i18n.translate('xpack.changeHistoryUi.preview.settings.unified', {
     defaultMessage: 'Unified',
   });
 
-  const splitLabel = i18n.translate('xpack.changeHistoryUi.preview.preview.settings.split', {
+  const splitLabel = i18n.translate('xpack.changeHistoryUi.preview.settings.split', {
     defaultMessage: 'Split',
   });
 
@@ -422,7 +426,7 @@ export const ChangeHistoryPreviewSettingsPopover = ({
               id={highlightValidationId}
               data-test-subj="changeHistoryHighlightValidationErrors"
               label={i18n.translate(
-                'xpack.changeHistoryUi.preview.preview.settings.highlightValidationErrors',
+                'xpack.changeHistoryUi.preview.settings.highlightValidationErrors',
                 { defaultMessage: 'Highlight the validation errors' }
               )}
               checked={highlightValidationErrors}

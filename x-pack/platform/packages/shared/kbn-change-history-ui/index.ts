@@ -24,6 +24,8 @@ export type {
 } from './src/components/modal';
 export {
   ChangeHistoryMonacoDiffPreview,
+  createChangeHistoryEuiMonacoTheme,
+  euiChangeHistoryMonacoTheme,
   getChangeHistoryValidationDisplayOptions,
 } from './src/components/preview';
 export type {
@@ -31,7 +33,10 @@ export type {
   ChangeHistoryCompareIndicator,
   ChangeHistoryMonacoDiffPreviewProps,
   ChangeHistoryMonacoLanguage,
+  ChangeHistoryMonacoTheme,
+  ChangeHistoryMonacoThemeDefinition,
   ChangeHistoryPreviewValidationContext,
+  CreateChangeHistoryEuiMonacoThemeOptions,
 } from './src/components/preview';
 export {
   ChangeHistoryTimeline,

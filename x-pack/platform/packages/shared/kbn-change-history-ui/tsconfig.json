@@ -17,5 +17,6 @@
     "@kbn/storybook",
     "@kbn/code-editor",
     "@kbn/css-utils",
+    "@kbn/monaco",
   ]
 }
