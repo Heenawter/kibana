@@ -1,10 +1,8 @@
 /*
  * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
- * or more contributor license agreements. Licensed under the "Elastic License
- * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
- * Public License v 1"; you may not use this file except in compliance with, at
- * your election, the "Elastic License 2.0", the "GNU Affero General Public
- * License v3.0 only", or the "Server Side Public License, v 1".
+ * or more contributor license agreements. Licensed under the Elastic License
+ * 2.0; you may not use this file except in compliance with the Elastic License
+ * 2.0.
  */
 
 import type { UseEuiTheme } from '@elastic/eui';
@@ -23,11 +21,10 @@ import { ClassNames, css } from '@emotion/react';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import { i18n } from '@kbn/i18n';
+import type { ChangeHistoryCompareMode } from '../../telemetry';
 import { changeHistoryPreviewTypography } from './change_history_preview_typography';
 
-export type WorkflowChangeHistoryCompareMode = 'unified' | 'split';
-
-const COMPARE_MODES: WorkflowChangeHistoryCompareMode[] = ['unified', 'split'];
+const COMPARE_MODES: ChangeHistoryCompareMode[] = ['unified', 'split'];
 
 const COMPARE_TILE_WIDTH = 110;
 const COMPARE_TILE_HEIGHT = 100;
@@ -41,8 +38,8 @@ const TILE_GAP = 16;
 const TILE_FOOTER_PADDING_X = 10;
 const SELECTED_TILE_TINT_ALPHA = 0.04;
 
-const PANEL_CLASS = 'workflowChangeHistoryPreviewSettingsPopoverPanel';
-const SETTINGS_BUTTON_TEST_SUBJ = 'workflowChangeHistoryPreviewSettingsButton';
+const PANEL_CLASS = 'changeHistoryPreviewSettingsPopoverPanel';
+const SETTINGS_BUTTON_TEST_SUBJ = 'changeHistoryPreviewSettingsButton';
 
 const ILLUSTRATION_BAR_HEIGHT = 8;
 const ILLUSTRATION_BAR_GROUP_HEIGHT = 36;
@@ -50,7 +47,7 @@ const ILLUSTRATION_BAR_TOP = (COMPARE_TILE_ILLUSTRATION_HEIGHT - ILLUSTRATION_BA
 const ILLUSTRATION_BAR_ROW_OFFSETS = [0, 14, 28] as const;
 
 interface CompareModeIllustrationProps {
-  mode: WorkflowChangeHistoryCompareMode;
+  mode: ChangeHistoryCompareMode;
   borderColor: string;
   addedColor: string;
   removedColor: string;
@@ -72,7 +69,7 @@ const CompareModeIllustration = ({
         height={COMPARE_TILE_ILLUSTRATION_HEIGHT}
         viewBox={`0 0 80 ${COMPARE_TILE_ILLUSTRATION_HEIGHT}`}
         aria-hidden={true}
-        data-test-subj={`workflowChangeHistoryCompareIllustration-${mode}`}
+        data-test-subj={`changeHistoryCompareIllustration-${mode}`}
       >
         <rect
           x="0"
@@ -108,7 +105,7 @@ const CompareModeIllustration = ({
       height={COMPARE_TILE_ILLUSTRATION_HEIGHT}
       viewBox={`0 0 86 ${COMPARE_TILE_ILLUSTRATION_HEIGHT}`}
       aria-hidden={true}
-      data-test-subj={`workflowChangeHistoryCompareIllustration-${mode}`}
+      data-test-subj={`changeHistoryCompareIllustration-${mode}`}
     >
       <line
         x1="43"
@@ -170,38 +167,41 @@ const CompareModeIllustration = ({
   );
 };
 
-export interface WorkflowChangeHistoryPreviewSettingsPopoverProps {
+export interface ChangeHistoryPreviewSettingsPopoverProps {
   hasCompare: boolean;
-  compareMode: WorkflowChangeHistoryCompareMode;
-  onCompareModeChange: (compareMode: WorkflowChangeHistoryCompareMode) => void;
+  compareMode: ChangeHistoryCompareMode;
+  onCompareModeChange: (compareMode: ChangeHistoryCompareMode) => void;
+  /** Shows the "highlight validation errors" toggle; omit when the consumer has no validation. */
+  hasValidation: boolean;
   highlightValidationErrors: boolean;
   onHighlightValidationErrorsChange: (highlightValidationErrors: boolean) => void;
   isOpen: boolean;
   onIsOpenChange: (isOpen: boolean) => void;
 }
 
-export const WorkflowChangeHistoryPreviewSettingsPopover = ({
+export const ChangeHistoryPreviewSettingsPopover = ({
   hasCompare,
   compareMode,
   onCompareModeChange,
+  hasValidation,
   highlightValidationErrors,
   onHighlightValidationErrorsChange,
   isOpen,
   onIsOpenChange,
-}: WorkflowChangeHistoryPreviewSettingsPopoverProps): JSX.Element => {
+}: ChangeHistoryPreviewSettingsPopoverProps): JSX.Element => {
   const { euiTheme } = useEuiTheme();
   const styles = useMemoCss(componentStyles);
   const unifiedTileRef = useRef<HTMLButtonElement>(null);
   const splitTileRef = useRef<HTMLButtonElement>(null);
 
   const popoverTitleId = useGeneratedHtmlId({
-    prefix: 'workflowChangeHistoryPreviewSettingsTitle',
+    prefix: 'changeHistoryPreviewSettingsTitle',
   });
   const highlightValidationId = useGeneratedHtmlId({
-    prefix: 'workflowChangeHistoryHighlightValidation',
+    prefix: 'changeHistoryHighlightValidation',
   });
   const compareModeGroupLabelId = useGeneratedHtmlId({
-    prefix: 'workflowChangeHistoryCompareModeGroup',
+    prefix: 'changeHistoryCompareModeGroup',
   });
 
   // Monaco can swallow bubble-phase outside clicks; close only on true outside mousedown.
@@ -236,29 +236,29 @@ export const WorkflowChangeHistoryPreviewSettingsPopover = ({
     [onHighlightValidationErrorsChange]
   );
 
-  const settingsLabel = i18n.translate('workflows.changeHistory.preview.settings.label', {
-    defaultMessage: 'YAML editor settings',
+  const settingsLabel = i18n.translate('xpack.changeHistoryUi.preview.preview.settings.label', {
+    defaultMessage: 'Editor settings',
   });
 
   const codeComparingLabel = i18n.translate(
-    'workflows.changeHistory.preview.settings.codeComparing',
+    'xpack.changeHistoryUi.preview.preview.settings.codeComparing',
     { defaultMessage: 'Code comparing' }
   );
 
-  const unifiedLabel = i18n.translate('workflows.changeHistory.preview.settings.unified', {
+  const unifiedLabel = i18n.translate('xpack.changeHistoryUi.preview.preview.settings.unified', {
     defaultMessage: 'Unified',
   });
 
-  const splitLabel = i18n.translate('workflows.changeHistory.preview.settings.split', {
+  const splitLabel = i18n.translate('xpack.changeHistoryUi.preview.preview.settings.split', {
     defaultMessage: 'Split',
   });
 
-  const focusCompareTile = useCallback((mode: WorkflowChangeHistoryCompareMode): void => {
+  const focusCompareTile = useCallback((mode: ChangeHistoryCompareMode): void => {
     (mode === 'unified' ? unifiedTileRef : splitTileRef).current?.focus();
   }, []);
 
   const selectCompareMode = useCallback(
-    (mode: WorkflowChangeHistoryCompareMode, shouldFocus = false): void => {
+    (mode: ChangeHistoryCompareMode, shouldFocus = false): void => {
       onCompareModeChange(mode);
       // Intentionally keep the popover open so users can switch unified/split without reopening.
       if (shouldFocus) {
@@ -269,10 +269,7 @@ export const WorkflowChangeHistoryPreviewSettingsPopover = ({
   );
 
   const handleCompareTileKeyDown = useCallback(
-    (
-      event: React.KeyboardEvent<HTMLButtonElement>,
-      mode: WorkflowChangeHistoryCompareMode
-    ): void => {
+    (event: React.KeyboardEvent<HTMLButtonElement>, mode: ChangeHistoryCompareMode): void => {
       const currentIndex = COMPARE_MODES.indexOf(compareMode);
 
       switch (event.key) {
@@ -307,7 +304,7 @@ export const WorkflowChangeHistoryPreviewSettingsPopover = ({
   );
 
   const renderCompareTile = (
-    mode: WorkflowChangeHistoryCompareMode,
+    mode: ChangeHistoryCompareMode,
     label: string,
     testSubj: string,
     tileRef: React.RefObject<HTMLButtonElement>
@@ -365,7 +362,7 @@ export const WorkflowChangeHistoryPreviewSettingsPopover = ({
 
   return (
     <EuiPopover
-      data-test-subj="workflowChangeHistoryPreviewSettingsPopover"
+      data-test-subj="changeHistoryPreviewSettingsPopover"
       aria-labelledby={popoverTitleId}
       isOpen={isOpen}
       closePopover={() => onIsOpenChange(false)}
@@ -380,7 +377,7 @@ export const WorkflowChangeHistoryPreviewSettingsPopover = ({
             size="s"
             iconType="controls"
             color="primary"
-            data-test-subj="workflowChangeHistoryPreviewSettingsButton"
+            data-test-subj="changeHistoryPreviewSettingsButton"
             onClick={() => onIsOpenChange(!isOpen)}
             aria-label={settingsLabel}
           />
@@ -411,31 +408,28 @@ export const WorkflowChangeHistoryPreviewSettingsPopover = ({
               {renderCompareTile(
                 'unified',
                 unifiedLabel,
-                'workflowChangeHistoryCompareUnified',
+                'changeHistoryCompareUnified',
                 unifiedTileRef
               )}
-              {renderCompareTile(
-                'split',
-                splitLabel,
-                'workflowChangeHistoryCompareSplit',
-                splitTileRef
-              )}
+              {renderCompareTile('split', splitLabel, 'changeHistoryCompareSplit', splitTileRef)}
             </EuiText>
           </EuiText>
         ) : null}
 
-        <EuiText component="div" css={styles.checkboxSection}>
-          <EuiCheckbox
-            id={highlightValidationId}
-            data-test-subj="workflowChangeHistoryHighlightValidationErrors"
-            label={i18n.translate(
-              'workflows.changeHistory.preview.settings.highlightValidationErrors',
-              { defaultMessage: 'Highlight the validation errors' }
-            )}
-            checked={highlightValidationErrors}
-            onChange={(event) => handleHighlightValidationErrorsChange(event.target.checked)}
-          />
-        </EuiText>
+        {hasValidation ? (
+          <EuiText component="div" css={styles.checkboxSection}>
+            <EuiCheckbox
+              id={highlightValidationId}
+              data-test-subj="changeHistoryHighlightValidationErrors"
+              label={i18n.translate(
+                'xpack.changeHistoryUi.preview.preview.settings.highlightValidationErrors',
+                { defaultMessage: 'Highlight the validation errors' }
+              )}
+              checked={highlightValidationErrors}
+              onChange={(event) => handleHighlightValidationErrorsChange(event.target.checked)}
+            />
+          </EuiText>
+        ) : null}
       </EuiText>
     </EuiPopover>
   );

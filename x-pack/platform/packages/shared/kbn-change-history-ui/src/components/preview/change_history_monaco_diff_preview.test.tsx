@@ -1,69 +1,43 @@
 /*
  * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
- * or more contributor license agreements. Licensed under the "Elastic License
- * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
- * Public License v 1"; you may not use this file except in compliance with, at
- * your election, the "Elastic License 2.0", the "GNU Affero General Public
- * License v3.0 only", or the "Server Side Public License, v 1".
+ * or more contributor license agreements. Licensed under the Elastic License
+ * 2.0; you may not use this file except in compliance with the Elastic License
+ * 2.0.
  */
 
 import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { monaco } from '@kbn/code-editor';
-import { I18nProvider } from '@kbn/i18n-react';
-import type { YamlValidationResult } from '@kbn/workflows-yaml';
-import { WorkflowChangeHistoryMonacoPreview } from './workflow_change_history_monaco_preview';
+import { TestProvider } from '../../test_utils/test_providers';
+import type { ChangeHistoryPreviewValidationContext } from './change_history_monaco_diff_preview';
+import { ChangeHistoryMonacoDiffPreview } from './change_history_monaco_diff_preview';
 
-jest.mock('@kbn/workflows-ui', () => ({
-  ...jest.requireActual('@kbn/workflows-ui'),
-  useDefineWorkflowsMonacoTheme: jest.fn(),
-}));
+interface MockValidationResult {
+  id: string;
+  message: string;
+}
 
-let mockValidationResults: YamlValidationResult[] = [];
-let mockIsValidationLoading = false;
+let mockValidationResults: MockValidationResult[] = [];
 const mockHandleValidationErrorClick = jest.fn();
 
-jest.mock('./use_workflow_change_history_preview_validation', () => ({
-  useWorkflowChangeHistoryPreviewValidation: jest.fn(() => ({
-    validationResults: mockValidationResults,
-    isValidationLoading: mockIsValidationLoading,
-    validationError: null,
-    handleValidationErrorClick: mockHandleValidationErrorClick,
-  })),
-}));
-
-jest.mock('../../widgets/workflow_yaml_editor/ui/workflow_yaml_validation_accordion', () => ({
-  WorkflowYamlValidationAccordion: ({
-    extraAction,
-    validationErrors,
-    isLoading,
-    onErrorClick,
-  }: {
-    extraAction?: React.ReactNode;
-    validationErrors?: YamlValidationResult[] | null;
-    isLoading?: boolean;
-    onErrorClick?: (error: YamlValidationResult) => void;
-  }) => (
-    <div data-test-subj="workflowYamlEditorValidationErrorsList">
-      {isLoading
-        ? 'Initializing validation...'
-        : (validationErrors ?? []).length === 0
+const renderValidation = ({ highlightValidationErrors }: ChangeHistoryPreviewValidationContext) =>
+  highlightValidationErrors ? (
+    <div data-test-subj="validationSlot">
+      {mockValidationResults.length === 0
         ? 'No validation errors'
-        : (validationErrors ?? []).map((error) => (
+        : mockValidationResults.map((error) => (
             <button
               key={error.id}
               type="button"
-              data-test-subj={`workflowYamlValidationError-${error.id}`}
-              onClick={() => onErrorClick?.(error)}
+              data-test-subj={`validationError-${error.id}`}
+              onClick={() => mockHandleValidationErrorClick(error)}
             >
               {error.message}
             </button>
           ))}
-      {extraAction}
     </div>
-  ),
-}));
+  ) : null;
 
 const mockYamlModel = {
   getLineLength: jest.fn(() => 10),
@@ -100,10 +74,14 @@ jest.mock('@kbn/code-editor', () => {
     ...actual,
     monaco: {
       ...actual.monaco,
-      MarkerSeverity: { Error: 8 },
       editor: {
         ...actual.monaco.editor,
-        createModel: jest.fn((value: string) => ({ value, dispose: jest.fn() })),
+        defineTheme: jest.fn(),
+        createModel: jest.fn((value: string, language: string) => ({
+          value,
+          language,
+          dispose: jest.fn(),
+        })),
         create: jest.fn(() => ({
           dispose: jest.fn(),
           layout: jest.fn(),
@@ -142,31 +120,22 @@ jest.mock('@kbn/code-editor', () => {
 const mockCreateEditor = monaco.editor.create as jest.Mock;
 const mockCreateDiffEditor = monaco.editor.createDiffEditor as jest.Mock;
 
-const sampleValidationError: YamlValidationResult = {
+const sampleValidationError: MockValidationResult = {
   id: 'preview-validation-error',
-  severity: 'error',
-  message: 'Invalid workflow step',
-  owner: 'step-name-validation',
-  ruleId: 'duplicateStepName',
-  startLineNumber: 3,
-  startColumn: 5,
-  endLineNumber: 3,
-  endColumn: 10,
-  hoverMessage: null,
+  message: 'Invalid document',
 };
 
-const renderPreview = (props: React.ComponentProps<typeof WorkflowChangeHistoryMonacoPreview>) =>
+const renderPreview = (props: React.ComponentProps<typeof ChangeHistoryMonacoDiffPreview>) =>
   render(
-    <I18nProvider>
-      <WorkflowChangeHistoryMonacoPreview {...props} />
-    </I18nProvider>
+    <TestProvider>
+      <ChangeHistoryMonacoDiffPreview language="yaml" {...props} />
+    </TestProvider>
   );
 
-describe('WorkflowChangeHistoryMonacoPreview', () => {
+describe('ChangeHistoryMonacoDiffPreview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockValidationResults = [];
-    mockIsValidationLoading = false;
     onDidUpdateDiffCallbacks.length = 0;
     mockLineChanges = [
       {
@@ -187,72 +156,66 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
 
   it('renders a read-only editor when no compare yaml is provided', () => {
     jest.useFakeTimers();
-    renderPreview({ targetYaml: 'name: current\n' });
+    renderPreview({ target: 'name: current\n' });
 
-    expect(screen.getByTestId('workflowChangeHistoryMonacoPreview')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryMonacoPreview')).toBeInTheDocument();
     expect(mockCreateEditor).toHaveBeenCalled();
     expect(mockCreateDiffEditor).not.toHaveBeenCalled();
     expect(screen.queryByText('No validation errors')).not.toBeInTheDocument();
-    expect(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryPreviewSettingsButton')).toBeInTheDocument();
   });
 
   it('renders a diff editor when compare yaml is identical', () => {
     jest.useFakeTimers();
     mockLineChanges = [];
     renderPreview({
-      targetYaml: 'name: same\n',
-      baselineYaml: 'name: same\n',
+      target: 'name: same\n',
+      baseline: 'name: same\n',
     });
 
     expect(mockCreateDiffEditor).toHaveBeenCalled();
     expect(mockCreateEditor).not.toHaveBeenCalled();
-    expect(screen.getByTestId('workflowChangeHistoryDiffNavigator')).toHaveTextContent(
-      'No changes'
-    );
+    expect(screen.getByTestId('changeHistoryDiffNavigator')).toHaveTextContent('No changes');
   });
 
   it('shows the comparing-with indicator when identical versions are compared', () => {
     jest.useFakeTimers();
     mockLineChanges = [];
     renderPreview({
-      targetYaml: 'name: same\n',
-      baselineYaml: 'name: same\n',
+      target: 'name: same\n',
+      baseline: 'name: same\n',
       compareIndicator: {
         baselineVersion: 69,
         currentVersion: 71,
       },
     });
 
-    expect(screen.getByTestId('workflowChangeHistoryCompareIndicator')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareIndicator')).toBeInTheDocument();
     expect(screen.getByText('Comparing with:')).toBeInTheDocument();
-    expect(screen.getByTestId('workflowChangeHistoryCompareIndicatorBadge')).toHaveTextContent(
-      'v69'
-    );
+    expect(screen.getByTestId('changeHistoryCompareIndicatorBadge')).toHaveTextContent('v69');
     expect(mockCreateDiffEditor).toHaveBeenCalled();
-    expect(screen.getByTestId('workflowChangeHistoryDiffNavigator')).toHaveTextContent(
-      'No changes'
-    );
+    expect(screen.getByTestId('changeHistoryDiffNavigator')).toHaveTextContent('No changes');
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
-    expect(screen.getByTestId('workflowChangeHistoryCompareUnified')).toBeInTheDocument();
-    expect(screen.getByTestId('workflowChangeHistoryCompareSplit')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+    expect(screen.getByTestId('changeHistoryCompareUnified')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareSplit')).toBeInTheDocument();
   });
 
   it('renders a diff editor when compare yaml is empty and current yaml is not', () => {
     jest.useFakeTimers();
     renderPreview({
-      targetYaml: 'name: v2\n',
-      baselineYaml: '',
+      target: 'name: v2\n',
+      baseline: '',
     });
 
     expect(mockCreateDiffEditor).toHaveBeenCalled();
     expect(mockCreateEditor).not.toHaveBeenCalled();
     expect(monaco.editor.createModel).toHaveBeenCalledWith('', 'yaml');
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
 
-    expect(screen.getByTestId('workflowChangeHistoryCompareUnified')).toBeInTheDocument();
-    expect(screen.getByTestId('workflowChangeHistoryCompareSplit')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareUnified')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareSplit')).toBeInTheDocument();
   });
 
   it('calls reportDiffViewed when compare yaml differs', () => {
@@ -260,8 +223,8 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
     const reportDiffViewed = jest.fn();
 
     renderPreview({
-      targetYaml: 'name: current\n',
-      baselineYaml: 'name: original\n',
+      target: 'name: current\n',
+      baseline: 'name: original\n',
       diffTelemetry: {
         compareMode: 'unified',
         setCompareMode: jest.fn(),
@@ -279,8 +242,8 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
     mockLineChanges = [];
 
     renderPreview({
-      targetYaml: 'name: same\n',
-      baselineYaml: 'name: same\n',
+      target: 'name: same\n',
+      baseline: 'name: same\n',
       diffTelemetry: {
         compareMode: 'unified',
         setCompareMode: jest.fn(),
@@ -295,8 +258,8 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
   it('renders a diff editor when compare yaml differs', () => {
     jest.useFakeTimers();
     renderPreview({
-      targetYaml: 'name: current\n',
-      baselineYaml: 'name: original\n',
+      target: 'name: current\n',
+      baseline: 'name: original\n',
     });
 
     expect(mockCreateDiffEditor).toHaveBeenCalled();
@@ -311,61 +274,53 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
       expect.objectContaining({ lineNumbers: 'on' })
     );
     expect(mockCreateEditor).not.toHaveBeenCalled();
-    expect(screen.getByTestId('workflowChangeHistoryDiffNavigator')).toHaveTextContent(
-      '1 of 1 changes'
-    );
-    expect(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryDiffNavigator')).toHaveTextContent('1 of 1 changes');
+    expect(screen.getByTestId('changeHistoryPreviewSettingsButton')).toBeInTheDocument();
   });
 
   it('shows the comparing-with indicator when compare labels are provided', () => {
     jest.useFakeTimers();
     renderPreview({
-      targetYaml: 'name: current\n',
-      baselineYaml: 'name: original\n',
+      target: 'name: current\n',
+      baseline: 'name: original\n',
       compareIndicator: {
         baselineVersion: 5,
         currentVersion: 8,
       },
     });
 
-    expect(screen.getByTestId('workflowChangeHistoryCompareIndicator')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareIndicator')).toBeInTheDocument();
     expect(screen.getByText('Comparing with:')).toBeInTheDocument();
-    expect(screen.getByTestId('workflowChangeHistoryCompareIndicatorBadge')).toHaveTextContent(
-      'v5'
-    );
+    expect(screen.getByTestId('changeHistoryCompareIndicatorBadge')).toHaveTextContent('v5');
   });
 
   it('shows split pane labels when compare mode is split', () => {
     jest.useFakeTimers();
     renderPreview({
-      targetYaml: 'name: current\n',
-      baselineYaml: 'name: original\n',
+      target: 'name: current\n',
+      baseline: 'name: original\n',
       compareIndicator: {
         baselineVersion: 5,
         currentVersion: 8,
       },
     });
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryCompareSplit'));
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+    fireEvent.click(screen.getByTestId('changeHistoryCompareSplit'));
 
-    expect(screen.getByTestId('workflowChangeHistoryCompareSplitPaneLabels')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareSplitPaneLabels')).toBeInTheDocument();
     expect(screen.getByText('Previous version:')).toBeInTheDocument();
     expect(screen.getByText('Selected version:')).toBeInTheDocument();
-    expect(screen.getByTestId('workflowChangeHistoryCompareSplitBaselineBadge')).toHaveTextContent(
-      'v5'
-    );
-    expect(screen.getByTestId('workflowChangeHistoryCompareSplitCurrentBadge')).toHaveTextContent(
-      'v8'
-    );
-    expect(screen.queryByTestId('workflowChangeHistoryCompareIndicator')).not.toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareSplitBaselineBadge')).toHaveTextContent('v5');
+    expect(screen.getByTestId('changeHistoryCompareSplitCurrentBadge')).toHaveTextContent('v8');
+    expect(screen.queryByTestId('changeHistoryCompareIndicator')).not.toBeInTheDocument();
   });
 
   it('shows the unsaved changes badge for the selected pane when there is no version', () => {
     jest.useFakeTimers();
     renderPreview({
-      targetYaml: 'name: draft\n',
-      baselineYaml: 'name: original\n',
+      target: 'name: draft\n',
+      baseline: 'name: original\n',
       compareIndicator: {
         baselineVersion: 2,
         currentBadgeLabel: 'Unsaved changes',
@@ -373,10 +328,10 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
       },
     });
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryCompareSplit'));
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+    fireEvent.click(screen.getByTestId('changeHistoryCompareSplit'));
 
-    expect(screen.getByTestId('workflowChangeHistoryCompareSplitCurrentBadge')).toHaveTextContent(
+    expect(screen.getByTestId('changeHistoryCompareSplitCurrentBadge')).toHaveTextContent(
       'Unsaved changes'
     );
     expect(screen.getByText('Selected version:')).toBeInTheDocument();
@@ -385,8 +340,8 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
   it('scrolls to the first diff when diff computation completes', () => {
     jest.useFakeTimers();
     renderPreview({
-      targetYaml: 'name: current\nsteps:\n  - name: updated\n',
-      baselineYaml: 'name: original\nsteps:\n  - name: old\n',
+      target: 'name: current\nsteps:\n  - name: updated\n',
+      baseline: 'name: original\nsteps:\n  - name: old\n',
     });
 
     expect(onDidUpdateDiffCallbacks).toHaveLength(1);
@@ -401,16 +356,16 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
   it('updates diff layout via updateOptions when compare mode changes', () => {
     jest.useFakeTimers();
     renderPreview({
-      targetYaml: 'name: current\n',
-      baselineYaml: 'name: original\n',
+      target: 'name: current\n',
+      baseline: 'name: original\n',
     });
 
     expect(mockCreateDiffEditor).toHaveBeenCalled();
 
     const createCallsBeforeToggle = mockCreateDiffEditor.mock.calls.length;
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryCompareSplit'));
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+    fireEvent.click(screen.getByTestId('changeHistoryCompareSplit'));
 
     expect(mockDiffUpdateOptions).toHaveBeenCalledWith(
       expect.objectContaining({ renderSideBySide: true, renderIndicators: true })
@@ -420,62 +375,59 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
 
   it('keeps settings popover open when toggling highlight validation', () => {
     renderPreview({
-      targetYaml: 'name: current\n',
-      baselineYaml: 'name: original\n',
+      target: 'name: current\n',
+      baseline: 'name: original\n',
+      renderValidation,
     });
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
-    expect(screen.getByTestId('workflowChangeHistoryCompareUnified')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+    expect(screen.getByTestId('changeHistoryCompareUnified')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryHighlightValidationErrors'));
+    fireEvent.click(screen.getByTestId('changeHistoryHighlightValidationErrors'));
 
-    expect(screen.getByTestId('workflowChangeHistoryCompareUnified')).toBeInTheDocument();
-    expect(
-      screen.getByTestId('workflowChangeHistoryHighlightValidationErrors')
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareUnified')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryHighlightValidationErrors')).toBeInTheDocument();
   });
 
   it('keeps settings popover open when switching compare mode', () => {
     renderPreview({
-      targetYaml: 'name: current\n',
-      baselineYaml: 'name: original\n',
+      target: 'name: current\n',
+      baseline: 'name: original\n',
     });
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryCompareSplit'));
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+    fireEvent.click(screen.getByTestId('changeHistoryCompareSplit'));
 
-    expect(screen.getByTestId('workflowChangeHistoryCompareUnified')).toBeInTheDocument();
-    expect(
-      screen.getByTestId('workflowChangeHistoryHighlightValidationErrors')
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareUnified')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareSplit')).toBeInTheDocument();
   });
 
-  it('shows validation settings when highlight validation is enabled', () => {
-    renderPreview({ targetYaml: 'name: current\n' });
+  it('shows the validation slot when highlight validation is enabled', () => {
+    renderPreview({ target: 'name: current\n', renderValidation });
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryHighlightValidationErrors'));
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+    fireEvent.click(screen.getByTestId('changeHistoryHighlightValidationErrors'));
 
-    expect(screen.getByTestId('workflowYamlEditorValidationErrorsList')).toBeInTheDocument();
+    expect(screen.getByTestId('validationSlot')).toBeInTheDocument();
     expect(screen.getByText('No validation errors')).toBeInTheDocument();
   });
 
   it('does not show compare mode settings when yaml has no diff baseline', () => {
     jest.useFakeTimers();
-    renderPreview({ targetYaml: 'name: current\n' });
+    renderPreview({ target: 'name: current\n' });
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
 
-    expect(screen.queryByTestId('workflowChangeHistoryCompareUnified')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('workflowChangeHistoryCompareSplit')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('changeHistoryCompareUnified')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('changeHistoryCompareSplit')).not.toBeInTheDocument();
   });
 
   it('shows the validation accordion when highlight validation is enabled', async () => {
     jest.useFakeTimers();
-    renderPreview({ targetYaml: 'name: current\n' });
+    renderPreview({ target: 'name: current\n', renderValidation });
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryHighlightValidationErrors'));
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+    fireEvent.click(screen.getByTestId('changeHistoryHighlightValidationErrors'));
 
     await act(async () => {
       jest.advanceTimersByTime(150);
@@ -488,21 +440,19 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
     });
   });
 
-  it('delegates validation error clicks to the preview validation hook', async () => {
+  it('renders the validation slot and lets it use the editor context', async () => {
     mockValidationResults = [sampleValidationError];
 
-    renderPreview({ targetYaml: 'name: current\nsteps:\n  - bad\n' });
+    renderPreview({ target: 'name: current\nsteps:\n  - bad\n', renderValidation });
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryHighlightValidationErrors'));
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+    fireEvent.click(screen.getByTestId('changeHistoryHighlightValidationErrors'));
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId(`workflowYamlValidationError-${sampleValidationError.id}`)
-      ).toBeInTheDocument();
+      expect(screen.getByTestId(`validationError-${sampleValidationError.id}`)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId(`workflowYamlValidationError-${sampleValidationError.id}`));
+    fireEvent.click(screen.getByTestId(`validationError-${sampleValidationError.id}`));
 
     expect(mockHandleValidationErrorClick).toHaveBeenCalledWith(sampleValidationError);
   });
@@ -510,14 +460,14 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
   it('moves compare mode selection and focus with arrow keys', () => {
     jest.useFakeTimers();
     renderPreview({
-      targetYaml: 'name: current\n',
-      baselineYaml: 'name: original\n',
+      target: 'name: current\n',
+      baseline: 'name: original\n',
     });
 
-    fireEvent.click(screen.getByTestId('workflowChangeHistoryPreviewSettingsButton'));
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
 
-    const unifiedTile = screen.getByTestId('workflowChangeHistoryCompareUnified');
-    const splitTile = screen.getByTestId('workflowChangeHistoryCompareSplit');
+    const unifiedTile = screen.getByTestId('changeHistoryCompareUnified');
+    const splitTile = screen.getByTestId('changeHistoryCompareSplit');
 
     unifiedTile.focus();
     expect(unifiedTile).toHaveFocus();
@@ -527,6 +477,38 @@ describe('WorkflowChangeHistoryMonacoPreview', () => {
     expect(splitTile).toHaveFocus();
     expect(mockDiffUpdateOptions).toHaveBeenCalledWith(
       expect.objectContaining({ renderSideBySide: true, renderIndicators: true })
+    );
+  });
+
+  it('hides the validation setting when no validation slot is provided', () => {
+    jest.useFakeTimers();
+    renderPreview({ target: 'name: current\n' });
+
+    fireEvent.click(screen.getByTestId('changeHistoryPreviewSettingsButton'));
+
+    expect(screen.queryByTestId('changeHistoryHighlightValidationErrors')).not.toBeInTheDocument();
+  });
+
+  it('serializes objects as pretty JSON and defaults the language to json', () => {
+    jest.useFakeTimers();
+    render(
+      <TestProvider>
+        <ChangeHistoryMonacoDiffPreview baseline={{ a: 1 }} target={{ a: 2 }} />
+      </TestProvider>
+    );
+
+    expect(monaco.editor.createModel).toHaveBeenCalledWith('{\n  "a": 1\n}', 'json');
+    expect(monaco.editor.createModel).toHaveBeenCalledWith('{\n  "a": 2\n}', 'json');
+  });
+
+  it('uses a provided Monaco theme instead of defining its own', () => {
+    jest.useFakeTimers();
+    renderPreview({ target: 'name: current\n', monacoTheme: 'my-theme' });
+
+    expect(monaco.editor.defineTheme).not.toHaveBeenCalled();
+    expect(mockCreateEditor).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ theme: 'my-theme' })
     );
   });
 });

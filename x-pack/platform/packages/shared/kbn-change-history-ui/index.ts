@@ -23,6 +23,17 @@ export type {
   ChangeHistoryListGroupItemProps,
 } from './src/components/modal';
 export {
+  ChangeHistoryMonacoDiffPreview,
+  getChangeHistoryValidationDisplayOptions,
+} from './src/components/preview';
+export type {
+  ChangeHistoryCompareBadgeColor,
+  ChangeHistoryCompareIndicator,
+  ChangeHistoryMonacoDiffPreviewProps,
+  ChangeHistoryMonacoLanguage,
+  ChangeHistoryPreviewValidationContext,
+} from './src/components/preview';
+export {
   ChangeHistoryTimeline,
   ChangeHistoryItem,
   ChangeHistoryFooter,

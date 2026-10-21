@@ -23,6 +23,7 @@ const detailsResponseSchema = z.object({
   action: z.string(),
   snapshot: getDashboardStateSchema(true),
   isCurrent: z.boolean(),
+  metadata: z.object({ version: z.number() }),
 });
 export type ChangeDetailsResponse = z.infer<typeof detailsResponseSchema>;
 
@@ -70,6 +71,7 @@ export const registerChangeDetailsRoute = (router: IRouter<RequestHandlerContext
           action: item.event.action,
           snapshot: item.object.snapshot,
           isCurrent: currentSequence !== undefined && item.object.sequence === currentSequence,
+          metadata: { version: item.object.sequence },
         },
       });
     }

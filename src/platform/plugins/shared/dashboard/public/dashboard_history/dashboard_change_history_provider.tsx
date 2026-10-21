@@ -11,12 +11,17 @@ import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 
 import { EuiLoadingSpinner } from '@elastic/eui';
 
-import { ChangeHistoryModal, ChangeHistoryProvider } from '@kbn/change-history-ui';
+import {
+  ChangeHistoryModal,
+  ChangeHistoryMonacoDiffPreview,
+  ChangeHistoryProvider,
+} from '@kbn/change-history-ui';
 import { i18n } from '@kbn/i18n';
 
 import { coreServices } from '../services/kibana_services';
 import { createDashboardChangeHistoryAdapter } from './dashboard_change_history_adapter';
 import { renderDashboardChangeHistoryBadge } from './dashboard_change_history_badge';
+import { getDashboardChangeHistoryCompareIndicator } from './get_dashboard_change_history_compare_indicator';
 import { useDashboardApi } from '../dashboard_api/use_dashboard_api';
 
 // the preview embeds a second dashboard renderer, so only load it once a change is previewed
@@ -68,15 +73,29 @@ export const DashboardChangeHistoryProvider = ({
     <ChangeHistoryProvider
       objectId={dashboardId}
       adapter={adapter}
-      renderPreview={(props) => (
-        <Suspense fallback={<EuiLoadingSpinner size="xl" />}>
-          <LazyDashboardPreview
-            {...props}
-            setPreviewTitle={setPreviewTitle}
-            inheritedTimeRange={dashboardApi?.timeRange$.getValue()}
-          />
-        </Suspense>
-      )}
+      renderPreview={(props) => {
+        console.log({ props });
+        return (
+          <>
+            {props.compareSpec && props.compareSpec.comparisonType === 'vs_row' ? (
+              <ChangeHistoryMonacoDiffPreview
+                baseline={props.compareSpec.baseline.snapshot as object}
+                target={props.compareSpec.target.snapshot as object}
+                compareIndicator={getDashboardChangeHistoryCompareIndicator(props.compareSpec)}
+                diffTelemetry={props.diffTelemetry}
+              />
+            ) : (
+              <Suspense fallback={<EuiLoadingSpinner size="xl" />}>
+                <LazyDashboardPreview
+                  {...props}
+                  setPreviewTitle={setPreviewTitle}
+                  inheritedTimeRange={dashboardApi?.timeRange$.getValue()}
+                />
+              </Suspense>
+            )}
+          </>
+        );
+      }}
       renderBadge={renderDashboardChangeHistoryBadge}
       labels={{
         previewBackLabel: i18n.translate('dashboard.changeHistory.backToDashboard', {
@@ -84,7 +103,7 @@ export const DashboardChangeHistoryProvider = ({
         }),
         previewTitle,
       }}
-      features={{ compare: false, restore: true, unsavedChanges: hasUnsavedChanges }}
+      features={{ compare: true, restore: true, unsavedChanges: hasUnsavedChanges }}
       permissions={{ canRestore: !dashboardApi.isManaged }}
       scope={scope}
       analytics={analytics}

@@ -103,7 +103,7 @@ describe('workflow change history preview', () => {
     });
 
     expect(screen.getByTestId('workflowChangeHistoryMonacoPreview')).toBeInTheDocument();
-    expect(screen.getByTestId('workflowChangeHistoryMonacoEditor')).toBeInTheDocument();
+    expect(screen.getByTestId('workflowChangeHistoryMonacoPreviewEditor')).toBeInTheDocument();
     expect(monaco.editor.create).toHaveBeenCalled();
     expect(monaco.editor.createModel).toHaveBeenCalledWith('name: historical\n', 'yaml');
     expect(screen.queryByTestId('workflowChangeHistoryCompareSettings')).not.toBeInTheDocument();
@@ -136,11 +136,9 @@ describe('workflow change history preview', () => {
     expect(mockCreateDiffEditor).toHaveBeenCalled();
     expect(monaco.editor.createModel).toHaveBeenNthCalledWith(1, 'name: historical\n', 'yaml');
     expect(monaco.editor.createModel).toHaveBeenNthCalledWith(2, 'name: current\n', 'yaml');
-    expect(screen.getByTestId('workflowChangeHistoryCompareIndicator')).toBeInTheDocument();
+    expect(screen.getByTestId('changeHistoryCompareIndicator')).toBeInTheDocument();
     expect(screen.getByText('Comparing with:')).toBeInTheDocument();
-    expect(screen.getByTestId('workflowChangeHistoryCompareIndicatorBadge')).toHaveTextContent(
-      'v1'
-    );
+    expect(screen.getByTestId('changeHistoryCompareIndicatorBadge')).toHaveTextContent('v1');
   });
 
   it('shows target yaml while compare context is loading', () => {

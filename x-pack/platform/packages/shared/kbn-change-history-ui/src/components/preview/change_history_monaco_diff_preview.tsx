@@ -1,79 +1,79 @@
 /*
  * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
- * or more contributor license agreements. Licensed under the "Elastic License
- * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
- * Public License v 1"; you may not use this file except in compliance with, at
- * your election, the "Elastic License 2.0", the "GNU Affero General Public
- * License v3.0 only", or the "Server Side Public License, v 1".
+ * or more contributor license agreements. Licensed under the Elastic License
+ * 2.0; you may not use this file except in compliance with the Elastic License
+ * 2.0.
  */
 
 import type { UseEuiTheme } from '@elastic/eui';
-import { EuiFlexGroup, EuiFlexItem, EuiText, transparentize } from '@elastic/eui';
+import { EuiFlexGroup, EuiFlexItem, EuiText, useEuiTheme } from '@elastic/eui';
+import type { Interpolation, Theme } from '@emotion/react';
 import { css } from '@emotion/react';
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { ChangeHistoryDiffTelemetry } from '@kbn/change-history-ui';
+import type { MutableRefObject, ReactNode } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { monaco } from '@kbn/code-editor';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
+import type { ChangeHistoryCompareMode } from '../../telemetry';
+import type { ChangeHistoryDiffTelemetry } from '../../types';
+import type { ChangeHistoryCompareIndicator } from './change_history_compare_indicator';
 import {
-  getWorkflowValidationDisplayOptions,
-  useDefineWorkflowsMonacoTheme,
-  WORKFLOW_CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS,
-  WORKFLOW_CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS,
-  WORKFLOW_CHANGE_HISTORY_PREVIEW_MONACO_OPTIONS,
-  WORKFLOW_CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS,
-  WORKFLOW_CHANGE_HISTORY_UNIFIED_DIFF_EDITOR_OPTIONS,
-  WORKFLOW_CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS,
-} from '@kbn/workflows-ui';
-import type { WorkflowChangeHistoryCompareIndicator } from './get_workflow_change_history_compare_indicator';
-import { useWorkflowChangeHistoryPreviewValidation } from './use_workflow_change_history_preview_validation';
+  ChangeHistoryCompareIndicatorBar,
+  ChangeHistoryCompareSplitPaneLabels,
+} from './change_history_compare_indicator';
 import {
-  WorkflowChangeHistoryCompareIndicatorBar,
-  WorkflowChangeHistoryCompareSplitPaneLabels,
-} from './workflow_change_history_compare_indicator';
+  CHANGE_HISTORY_PREVIEW_NAVIGATOR_HEIGHT,
+  ChangeHistoryDiffNavigator,
+} from './change_history_diff_navigator';
+import { ChangeHistoryPreviewSettingsPopover } from './change_history_preview_settings_popover';
+import { buildChangeHistoryUnifiedDiffLayoutStyles } from './change_history_unified_diff_layout';
 import {
-  WORKFLOW_CHANGE_HISTORY_PREVIEW_NAVIGATOR_HEIGHT,
-  WorkflowChangeHistoryDiffNavigator,
-} from './workflow_change_history_diff_navigator';
-import {
-  WORKFLOW_CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
-  WorkflowChangeHistoryPreviewFooter,
-} from './workflow_change_history_preview_footer';
-import type { WorkflowChangeHistoryCompareMode } from './workflow_change_history_preview_settings_popover';
-import { WorkflowChangeHistoryPreviewSettingsPopover } from './workflow_change_history_preview_settings_popover';
-import { buildWorkflowChangeHistoryUnifiedDiffLayoutStyles } from './workflow_change_history_unified_diff_layout';
-import { clearWorkflowYamlComputationCache } from '../validate_workflow_yaml/lib/workflow_yaml_computation_cache';
+  CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS,
+  CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS,
+  CHANGE_HISTORY_PREVIEW_MONACO_OPTIONS,
+  CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS,
+  CHANGE_HISTORY_UNIFIED_DIFF_EDITOR_OPTIONS,
+  CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS,
+  getChangeHistoryValidationDisplayOptions,
+} from './monaco_options';
 
-const FLOATING_NAVIGATOR_BOTTOM = `calc(${WORKFLOW_CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT} - ${WORKFLOW_CHANGE_HISTORY_PREVIEW_NAVIGATOR_HEIGHT} / 2)`;
+/** Collapsed footer row height. */
+export const CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT = '48px';
+
+const DEFAULT_MONACO_THEME_PREFIX = 'change-history';
+
+const FLOATING_NAVIGATOR_BOTTOM = `calc(${CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT} - ${CHANGE_HISTORY_PREVIEW_NAVIGATOR_HEIGHT} / 2)`;
 
 const getDiffEditorOptions = (
-  compareMode: WorkflowChangeHistoryCompareMode,
-  highlightValidationErrors: boolean
+  compareMode: ChangeHistoryCompareMode,
+  highlightValidationErrors: boolean,
+  theme: string
 ): monaco.editor.IStandaloneDiffEditorConstructionOptions => ({
-  ...WORKFLOW_CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS,
+  ...CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS,
+  theme,
   ...(compareMode === 'split'
-    ? WORKFLOW_CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS
-    : WORKFLOW_CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS),
-  ...getWorkflowValidationDisplayOptions(highlightValidationErrors),
+    ? CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS
+    : CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS),
+  ...getChangeHistoryValidationDisplayOptions(highlightValidationErrors),
   renderSideBySide: compareMode === 'split',
   renderIndicators: compareMode === 'split',
 });
 
 const configureDiffEditors = (
   diffEditor: monaco.editor.IStandaloneDiffEditor,
-  compareMode: WorkflowChangeHistoryCompareMode,
+  compareMode: ChangeHistoryCompareMode,
   highlightValidationErrors: boolean
 ): void => {
   const sharedChildOptions: monaco.editor.IEditorOptions & monaco.editor.IGlobalEditorOptions = {
-    ...WORKFLOW_CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS,
+    ...CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS,
     glyphMargin: false,
     folding: false,
-    ...getWorkflowValidationDisplayOptions(highlightValidationErrors),
+    ...getChangeHistoryValidationDisplayOptions(highlightValidationErrors),
   };
 
   if (compareMode === 'split') {
     const splitOptions: monaco.editor.IEditorOptions = {
       ...sharedChildOptions,
-      ...WORKFLOW_CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS,
+      ...CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS,
     };
     diffEditor.getOriginalEditor().updateOptions(splitOptions);
     diffEditor.getModifiedEditor().updateOptions(splitOptions);
@@ -82,11 +82,11 @@ const configureDiffEditors = (
 
   diffEditor.getOriginalEditor().updateOptions({
     ...sharedChildOptions,
-    ...WORKFLOW_CHANGE_HISTORY_UNIFIED_DIFF_EDITOR_OPTIONS,
+    ...CHANGE_HISTORY_UNIFIED_DIFF_EDITOR_OPTIONS,
   });
   diffEditor.getModifiedEditor().updateOptions({
     ...sharedChildOptions,
-    ...WORKFLOW_CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS,
+    ...CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS,
   });
 };
 
@@ -134,25 +134,74 @@ const scrollDiffEditorToChange = (
   return true;
 };
 
-export interface WorkflowChangeHistoryMonacoPreviewProps {
-  /** Monaco original model in diff mode (typically the older snapshot). */
-  baselineYaml?: string;
-  /** Monaco modified model in diff mode, or the sole editor when not diffing. */
-  targetYaml: string;
-  /** YAML validated in the preview; defaults to `targetYaml`. */
-  validationYaml?: string;
-  diffTelemetry?: ChangeHistoryDiffTelemetry;
-  compareIndicator?: WorkflowChangeHistoryCompareIndicator;
+export type ChangeHistoryMonacoLanguage = 'json' | 'yaml' | 'plaintext';
+
+/** Editor handles and helpers a consumer needs to drive domain-specific validation of the preview. */
+export interface ChangeHistoryPreviewValidationContext {
+  highlightValidationErrors: boolean;
+  isEditorMounted: boolean;
+  getActiveEditor: () => monaco.editor.IStandaloneCodeEditor | null;
+  editorRef: MutableRefObject<monaco.editor.IStandaloneCodeEditor | null>;
+  diffEditorRef: MutableRefObject<monaco.editor.IStandaloneDiffEditor | null>;
+  validationDecorationsRef: MutableRefObject<monaco.editor.IEditorDecorationsCollection | null>;
+  compareModeRef: MutableRefObject<ChangeHistoryCompareMode>;
+  /** Re-applies the unified/split child-editor options (stable identity). */
+  configureDiffEditors: (
+    diffEditor: monaco.editor.IStandaloneDiffEditor,
+    compareMode: ChangeHistoryCompareMode,
+    highlightValidationErrors: boolean
+  ) => void;
 }
 
-export const WorkflowChangeHistoryMonacoPreview = ({
-  baselineYaml,
-  targetYaml,
-  validationYaml = targetYaml,
+export interface ChangeHistoryMonacoDiffPreviewProps {
+  /** Older content (Monaco "original"). Strings are used as-is; other values are serialized as pretty JSON. */
+  baseline?: string | object;
+  /** Newer content (Monaco "modified"), or the sole read-only editor when `baseline` is omitted. */
+  target: string | object;
+  /** Monaco language id. Defaults to `json`. */
+  language?: ChangeHistoryMonacoLanguage;
+  diffTelemetry?: ChangeHistoryDiffTelemetry;
+  /** Version labels shown above the diff panes. */
+  compareIndicator?: ChangeHistoryCompareIndicator;
+  /** Pre-registered Monaco theme id. Defaults to a theme the component defines from the EUI theme. */
+  monacoTheme?: string;
+  /**
+   * Optional validation slot rendered in the footer. The returned node is always mounted, so
+   * it can react to `highlightValidationErrors` turning off; it should render nothing visible
+   * (or only the validation results) in that case. Providing it enables the "highlight
+   * validation errors" setting.
+   */
+  renderValidation?: (context: ChangeHistoryPreviewValidationContext) => ReactNode;
+  /** Extra Emotion styles for the preview root, e.g. to style validation decoration classes. */
+  containerStyles?: (theme: UseEuiTheme) => Interpolation<Theme>;
+  /** CSS height of the preview. Defaults to `100%`. */
+  height?: string | number;
+  'data-test-subj'?: string;
+}
+
+const toText = (value: string | object): string =>
+  typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+
+export const ChangeHistoryMonacoDiffPreview = ({
+  baseline,
+  target,
+  language = 'json',
   diffTelemetry,
   compareIndicator,
-}: WorkflowChangeHistoryMonacoPreviewProps): JSX.Element => {
+  monacoTheme: monacoThemeProp,
+  renderValidation,
+  containerStyles,
+  height = '100%',
+  'data-test-subj': dataTestSubj = 'changeHistoryMonacoPreview',
+}: ChangeHistoryMonacoDiffPreviewProps): JSX.Element => {
   const styles = useMemoCss(componentStyles);
+  const euiThemeContext = useEuiTheme();
+  const { euiTheme, colorMode } = euiThemeContext;
+  const baselineYaml = useMemo(
+    () => (baseline === undefined ? undefined : toText(baseline)),
+    [baseline]
+  );
+  const targetYaml = useMemo(() => toText(target), [target]);
   const containerRef = useRef<HTMLDivElement>(null);
   const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -160,7 +209,7 @@ export const WorkflowChangeHistoryMonacoPreview = ({
   const pendingDiffScrollIndexRef = useRef<number | null>(null);
   const [diffCurrentIndex, setDiffCurrentIndex] = useState(0);
   const [diffTotalChanges, setDiffTotalChanges] = useState(0);
-  const [compareMode, setCompareMode] = useState<WorkflowChangeHistoryCompareMode>('unified');
+  const [compareMode, setCompareMode] = useState<ChangeHistoryCompareMode>('unified');
   const compareModeRef = useRef(compareMode);
   compareModeRef.current = compareMode;
   const [highlightValidationErrors, setHighlightValidationErrors] = useState(false);
@@ -168,6 +217,24 @@ export const WorkflowChangeHistoryMonacoPreview = ({
   const [isEditorMounted, setIsEditorMounted] = useState(false);
   const highlightValidationErrorsRef = useRef(highlightValidationErrors);
   highlightValidationErrorsRef.current = highlightValidationErrors;
+
+  const defaultMonacoTheme = `${DEFAULT_MONACO_THEME_PREFIX}-${colorMode.toLowerCase()}`;
+  const monacoTheme = monacoThemeProp ?? defaultMonacoTheme;
+  const monacoThemeRef = useRef(monacoTheme);
+  monacoThemeRef.current = monacoTheme;
+
+  useLayoutEffect(() => {
+    if (monacoThemeProp) {
+      return;
+    }
+
+    monaco.editor.defineTheme(defaultMonacoTheme, {
+      base: colorMode === 'DARK' ? 'vs-dark' : 'vs',
+      inherit: true,
+      rules: [],
+      colors: { 'editor.background': euiTheme.components.codeBackground },
+    });
+  }, [colorMode, defaultMonacoTheme, euiTheme.components.codeBackground, monacoThemeProp]);
 
   const isCompareMode = baselineYaml !== undefined;
   const useDiffEditor = isCompareMode;
@@ -183,34 +250,30 @@ export const WorkflowChangeHistoryMonacoPreview = ({
   const stableConfigureDiffEditors = useCallback(
     (
       diffEditor: monaco.editor.IStandaloneDiffEditor,
-      mode: WorkflowChangeHistoryCompareMode,
+      mode: ChangeHistoryCompareMode,
       highlight: boolean
     ) => configureDiffEditorsRef.current(diffEditor, mode, highlight),
     []
   );
 
-  const { validationResults, isValidationLoading, validationError, handleValidationErrorClick } =
-    useWorkflowChangeHistoryPreviewValidation({
-      getActiveEditor,
-      validationDecorationsRef,
-      validationYaml,
-      highlightValidationErrors,
-      isEditorMounted,
-      editorRef,
-      diffEditorRef,
-      compareModeRef,
-      configureDiffEditors: stableConfigureDiffEditors,
-    });
+  const validationContext: ChangeHistoryPreviewValidationContext = {
+    highlightValidationErrors,
+    isEditorMounted,
+    getActiveEditor,
+    editorRef,
+    diffEditorRef,
+    validationDecorationsRef,
+    compareModeRef,
+    configureDiffEditors: stableConfigureDiffEditors,
+  };
 
   const handleCompareModeChange = useCallback(
-    (mode: WorkflowChangeHistoryCompareMode) => {
+    (mode: ChangeHistoryCompareMode) => {
       setCompareMode(mode);
       diffTelemetry?.setCompareMode(mode);
     },
     [diffTelemetry]
   );
-
-  useDefineWorkflowsMonacoTheme();
 
   useEffect(() => {
     if (!diffTelemetry || !useDiffEditor || baselineYaml == null) {
@@ -221,8 +284,6 @@ export const WorkflowChangeHistoryMonacoPreview = ({
       diffTelemetry.reportDiffViewed();
     }
   }, [baselineYaml, diffTelemetry, targetYaml, useDiffEditor]);
-
-  useEffect(() => () => clearWorkflowYamlComputationCache(), []);
 
   const updateDiffState = useCallback((editor: monaco.editor.IStandaloneDiffEditor) => {
     const changes = editor.getLineChanges() ?? [];
@@ -240,11 +301,11 @@ export const WorkflowChangeHistoryMonacoPreview = ({
 
     if (useDiffEditor && baselineYaml != null) {
       const mountCompareMode = compareModeRef.current;
-      const originalModel = monaco.editor.createModel(baselineYaml, 'yaml');
-      const modifiedModel = monaco.editor.createModel(targetYaml, 'yaml');
+      const originalModel = monaco.editor.createModel(baselineYaml, language);
+      const modifiedModel = monaco.editor.createModel(targetYaml, language);
       const diffEditor = monaco.editor.createDiffEditor(
         container,
-        getDiffEditorOptions(mountCompareMode, false)
+        getDiffEditorOptions(mountCompareMode, false, monacoThemeRef.current)
       );
 
       diffEditor.setModel({ original: originalModel, modified: modifiedModel });
@@ -278,10 +339,11 @@ export const WorkflowChangeHistoryMonacoPreview = ({
       };
     }
 
-    const model = monaco.editor.createModel(targetYaml, 'yaml');
+    const model = monaco.editor.createModel(targetYaml, language);
     const editor = monaco.editor.create(container, {
-      ...WORKFLOW_CHANGE_HISTORY_PREVIEW_MONACO_OPTIONS,
-      ...getWorkflowValidationDisplayOptions(false),
+      ...CHANGE_HISTORY_PREVIEW_MONACO_OPTIONS,
+      ...getChangeHistoryValidationDisplayOptions(false),
+      theme: monacoThemeRef.current,
       model,
     });
     editor.layout();
@@ -300,7 +362,7 @@ export const WorkflowChangeHistoryMonacoPreview = ({
       validationDecorationsRef.current = null;
       setIsEditorMounted(false);
     };
-  }, [baselineYaml, targetYaml, updateDiffState, useDiffEditor]);
+  }, [baselineYaml, language, monacoTheme, targetYaml, updateDiffState, useDiffEditor]);
 
   useEffect(() => {
     const diffEditor = diffEditorRef.current;
@@ -309,7 +371,7 @@ export const WorkflowChangeHistoryMonacoPreview = ({
     }
 
     // Compare layout only — highlight squiggles/hover are owned by
-    // useWorkflowChangeHistoryPreviewValidation (do not add highlightValidationErrors here).
+    // the consumer's validation slot (do not add highlightValidationErrors here).
     diffEditor.updateOptions({
       renderSideBySide: compareMode === 'split',
       renderIndicators: compareMode === 'split',
@@ -367,15 +429,15 @@ export const WorkflowChangeHistoryMonacoPreview = ({
       direction="column"
       gutterSize="none"
       responsive={false}
-      css={styles.container}
-      data-test-subj="workflowChangeHistoryMonacoPreview"
+      css={[styles.container, { height }, containerStyles?.(euiThemeContext)]}
+      data-test-subj={dataTestSubj}
     >
       <EuiFlexItem css={styles.editor} grow={true}>
         {isCompareMode && compareIndicator ? (
           compareMode === 'split' ? (
-            <WorkflowChangeHistoryCompareSplitPaneLabels indicator={compareIndicator} />
+            <ChangeHistoryCompareSplitPaneLabels indicator={compareIndicator} />
           ) : (
-            <WorkflowChangeHistoryCompareIndicatorBar indicator={compareIndicator} />
+            <ChangeHistoryCompareIndicatorBar indicator={compareIndicator} />
           )
         ) : null}
         <EuiText
@@ -386,33 +448,35 @@ export const WorkflowChangeHistoryMonacoPreview = ({
             isCompareMode && compareMode === 'unified' ? styles.monacoHostUnified : undefined,
           ]}
         >
-          <div ref={containerRef} data-test-subj="workflowChangeHistoryMonacoEditor" />
+          <div ref={containerRef} data-test-subj={`${dataTestSubj}Editor`} />
         </EuiText>
       </EuiFlexItem>
       <EuiFlexItem css={styles.footer} grow={false}>
-        <WorkflowChangeHistoryPreviewFooter
-          validationResults={validationResults}
-          isEditorMounted={isEditorMounted}
-          isValidationLoading={isValidationLoading}
-          validationError={validationError}
-          highlightValidationErrors={highlightValidationErrors}
-          onValidationErrorClick={handleValidationErrorClick}
-        />
+        <div css={styles.footerContent} data-test-subj={`${dataTestSubj}Footer`}>
+          {renderValidation?.(validationContext)}
+          {renderValidation && highlightValidationErrors ? null : (
+            <div css={styles.footerBarSpacer} aria-hidden={true} />
+          )}
+        </div>
         <div css={styles.footerSettingsAnchor}>
-          <WorkflowChangeHistoryPreviewSettingsPopover
-            hasCompare={isCompareMode}
-            compareMode={compareMode}
-            onCompareModeChange={handleCompareModeChange}
-            highlightValidationErrors={highlightValidationErrors}
-            onHighlightValidationErrorsChange={setHighlightValidationErrors}
-            isOpen={isSettingsPopoverOpen}
-            onIsOpenChange={setIsSettingsPopoverOpen}
-          />
+          <>
+            <>Test</>
+            <ChangeHistoryPreviewSettingsPopover
+              hasCompare={isCompareMode}
+              hasValidation={Boolean(renderValidation)}
+              compareMode={compareMode}
+              onCompareModeChange={handleCompareModeChange}
+              highlightValidationErrors={highlightValidationErrors}
+              onHighlightValidationErrorsChange={setHighlightValidationErrors}
+              isOpen={isSettingsPopoverOpen}
+              onIsOpenChange={setIsSettingsPopoverOpen}
+            />
+          </>
         </div>
       </EuiFlexItem>
       {showDiffNavigator ? (
         <EuiFlexItem css={styles.floatingToolbar} grow={false}>
-          <WorkflowChangeHistoryDiffNavigator
+          <ChangeHistoryDiffNavigator
             currentIndex={diffCurrentIndex}
             totalChanges={diffTotalChanges}
             onPrevious={handleDiffPrevious}
@@ -430,38 +494,7 @@ const componentStyles = {
       position: 'relative',
       display: 'flex',
       flexDirection: 'column',
-      height: '100%',
       minHeight: 0,
-
-      '.template-variable-error': {
-        backgroundColor: transparentize(euiTheme.colors.vis.euiColorVisWarning1, 0.24),
-        color: euiTheme.colors.severity.danger,
-        borderRadius: '2px',
-      },
-      '.template-variable-warning': {
-        backgroundColor: transparentize(euiTheme.colors.vis.euiColorVisWarning1, 0.24),
-        borderRadius: '2px',
-      },
-      '.liquid-template-error': {
-        backgroundColor: transparentize(euiTheme.colors.vis.euiColorVisWarning1, 0.24),
-        color: euiTheme.colors.severity.danger,
-        borderRadius: '2px',
-      },
-      '.liquid-template-warning': {
-        backgroundColor: transparentize(euiTheme.colors.vis.euiColorVisWarning1, 0.24),
-        borderRadius: '2px',
-      },
-      '.duplicate-step-name-error': {
-        backgroundColor: euiTheme.colors.backgroundLightDanger,
-      },
-      '.yaml-error': {
-        backgroundColor: transparentize(euiTheme.colors.vis.euiColorVisWarning1, 0.24),
-        borderRadius: '2px',
-      },
-      '.yaml-warning': {
-        backgroundColor: transparentize(euiTheme.colors.vis.euiColorVisWarning1, 0.24),
-        borderRadius: '2px',
-      },
     }),
   editor: (themeContext: UseEuiTheme) =>
     css({
@@ -473,7 +506,7 @@ const componentStyles = {
       display: 'flex',
       flexDirection: 'column',
       // Monaco scrollbars default to z-index 11; keep them below floating overlays.
-      ...buildWorkflowChangeHistoryUnifiedDiffLayoutStyles(themeContext),
+      ...buildChangeHistoryUnifiedDiffLayoutStyles(themeContext),
       '& .monaco-editor .scrollbar': {
         zIndex: 1,
       },
@@ -496,17 +529,35 @@ const componentStyles = {
     css({
       paddingLeft: `calc(${euiTheme.size.m} + ${euiTheme.size.s})`,
     }),
-  footer: ({ euiTheme }: UseEuiTheme) =>
+  footer: css({
+    position: 'relative',
+    zIndex: 1,
+  }),
+  footerContent: ({ euiTheme }: UseEuiTheme) =>
     css({
-      position: 'relative',
-      zIndex: 1,
+      width: '100%',
+      flexShrink: 0,
+      minHeight: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
+      overflow: 'hidden',
+      backgroundColor: euiTheme.colors.backgroundBaseSubdued,
+
+      '.euiAccordion': {
+        backgroundColor: euiTheme.colors.backgroundBaseSubdued,
+        borderTop: euiTheme.border.thin,
+      },
+    }),
+  footerBarSpacer: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      minHeight: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
+      borderTop: euiTheme.border.thin,
+      backgroundColor: euiTheme.colors.backgroundBaseSubdued,
     }),
   footerSettingsAnchor: ({ euiTheme }: UseEuiTheme) =>
     css({
       position: 'absolute',
       right: euiTheme.size.m,
       top: 0,
-      height: WORKFLOW_CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
+      height: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
       display: 'flex',
       alignItems: 'center',
       zIndex: 2,

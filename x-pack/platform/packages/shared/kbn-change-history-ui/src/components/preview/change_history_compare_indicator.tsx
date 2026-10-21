@@ -1,10 +1,8 @@
 /*
  * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
- * or more contributor license agreements. Licensed under the "Elastic License
- * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
- * Public License v 1"; you may not use this file except in compliance with, at
- * your election, the "Elastic License 2.0", the "GNU Affero General Public
- * License v3.0 only", or the "Server Side Public License, v 1".
+ * or more contributor license agreements. Licensed under the Elastic License
+ * 2.0; you may not use this file except in compliance with the Elastic License
+ * 2.0.
  */
 
 import type { UseEuiTheme } from '@elastic/eui';
@@ -13,10 +11,6 @@ import { css } from '@emotion/react';
 import React from 'react';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import { changeHistoryPreviewTypography } from './change_history_preview_typography';
-import type {
-  WorkflowChangeHistoryCompareBadgeColor,
-  WorkflowChangeHistoryCompareIndicator,
-} from './get_workflow_change_history_compare_indicator';
 import {
   COMPARING_WITH_LABEL,
   PREVIOUS_VERSION_LABEL,
@@ -25,8 +19,18 @@ import {
   VERSION_BADGE_FALLBACK,
 } from './translations';
 
-export interface WorkflowChangeHistoryCompareIndicatorProps {
-  indicator: WorkflowChangeHistoryCompareIndicator;
+export type ChangeHistoryCompareBadgeColor = 'hollow' | 'warning';
+
+/** Version labels for the compare headers. Baseline = older side; current = newer / selected side. */
+export interface ChangeHistoryCompareIndicator {
+  baselineVersion?: number;
+  currentVersion?: number;
+  currentBadgeLabel?: string;
+  currentBadgeColor?: ChangeHistoryCompareBadgeColor;
+}
+
+export interface ChangeHistoryCompareIndicatorProps {
+  indicator: ChangeHistoryCompareIndicator;
 }
 
 const VersionBadge = ({
@@ -37,7 +41,7 @@ const VersionBadge = ({
 }: {
   version?: number;
   badgeLabel?: string;
-  badgeColor?: WorkflowChangeHistoryCompareBadgeColor;
+  badgeColor?: ChangeHistoryCompareBadgeColor;
   testSubj: string;
 }): JSX.Element | null => {
   const { euiTheme } = useEuiTheme();
@@ -69,9 +73,9 @@ const VersionBadge = ({
   );
 };
 
-export const WorkflowChangeHistoryCompareIndicatorBar = ({
+export const ChangeHistoryCompareIndicatorBar = ({
   indicator,
-}: WorkflowChangeHistoryCompareIndicatorProps): JSX.Element => {
+}: ChangeHistoryCompareIndicatorProps): JSX.Element => {
   const styles = useMemoCss(componentStyles);
 
   return (
@@ -80,7 +84,7 @@ export const WorkflowChangeHistoryCompareIndicatorBar = ({
       alignItems="center"
       responsive={false}
       css={styles.unifiedContainer}
-      data-test-subj="workflowChangeHistoryCompareIndicator"
+      data-test-subj="changeHistoryCompareIndicator"
     >
       <EuiFlexItem grow={false}>
         <EuiText size="s" css={styles.label}>
@@ -90,16 +94,16 @@ export const WorkflowChangeHistoryCompareIndicatorBar = ({
       <EuiFlexItem grow={false}>
         <VersionBadge
           version={indicator.baselineVersion}
-          testSubj="workflowChangeHistoryCompareIndicatorBadge"
+          testSubj="changeHistoryCompareIndicatorBadge"
         />
       </EuiFlexItem>
     </EuiFlexGroup>
   );
 };
 
-export const WorkflowChangeHistoryCompareSplitPaneLabels = ({
+export const ChangeHistoryCompareSplitPaneLabels = ({
   indicator,
-}: WorkflowChangeHistoryCompareIndicatorProps): JSX.Element => {
+}: ChangeHistoryCompareIndicatorProps): JSX.Element => {
   const styles = useMemoCss(componentStyles);
 
   return (
@@ -107,7 +111,7 @@ export const WorkflowChangeHistoryCompareSplitPaneLabels = ({
       gutterSize="none"
       responsive={false}
       css={styles.splitContainer}
-      data-test-subj="workflowChangeHistoryCompareSplitPaneLabels"
+      data-test-subj="changeHistoryCompareSplitPaneLabels"
     >
       <EuiFlexItem css={styles.splitPaneLeft}>
         <EuiFlexGroup gutterSize="s" alignItems="center" responsive={false}>
@@ -119,7 +123,7 @@ export const WorkflowChangeHistoryCompareSplitPaneLabels = ({
           <EuiFlexItem grow={false}>
             <VersionBadge
               version={indicator.baselineVersion}
-              testSubj="workflowChangeHistoryCompareSplitBaselineBadge"
+              testSubj="changeHistoryCompareSplitBaselineBadge"
             />
           </EuiFlexItem>
         </EuiFlexGroup>
@@ -136,7 +140,7 @@ export const WorkflowChangeHistoryCompareSplitPaneLabels = ({
               version={indicator.currentVersion}
               badgeLabel={indicator.currentBadgeLabel}
               badgeColor={indicator.currentBadgeColor}
-              testSubj="workflowChangeHistoryCompareSplitCurrentBadge"
+              testSubj="changeHistoryCompareSplitCurrentBadge"
             />
           </EuiFlexItem>
         </EuiFlexGroup>
