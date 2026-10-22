@@ -10,7 +10,7 @@ import { useEuiTheme } from '@elastic/eui';
 import type { Interpolation, Theme } from '@emotion/react';
 import { css } from '@emotion/react';
 import type { MutableRefObject, ReactNode } from 'react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { monaco } from '@kbn/code-editor';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import type { ChangeHistoryCompareMode } from '../../telemetry';
@@ -24,11 +24,8 @@ import {
   CHANGE_HISTORY_PREVIEW_NAVIGATOR_HEIGHT,
   ChangeHistoryDiffNavigator,
 } from './change_history_diff_navigator';
-import {
-  configureDiffEditors,
-  ChangeHistoryMonacoDiff,
-  scrollDiffEditorToChange,
-} from './change_history_monaco_diff';
+import type { ChangeHistoryDiffNavigation } from './change_history_monaco_diff';
+import { ChangeHistoryMonacoDiff } from './change_history_monaco_diff';
 import {
   CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
   ChangeHistoryPreviewFooterSpacer,
@@ -144,45 +141,13 @@ export const ChangeHistoryMonacoDiffPreview = ({
     [baseline]
   );
   const targetComparison = useMemo(() => toText(target), [target]);
-  const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
-  const [isEditorMounted, setIsEditorMounted] = useState(false);
-  const pendingDiffScrollIndexRef = useRef<number | null>(null);
-  const [diffCurrentIndex, setDiffCurrentIndex] = useState(0);
-  const [diffTotalChanges, setDiffTotalChanges] = useState(0);
+  const [editorContext, setEditorContext] = useState<ChangeHistoryPreviewEditorContext | null>(
+    null
+  );
+  const [diffNavigation, setDiffNavigation] = useState<ChangeHistoryDiffNavigation | null>(null);
   const [compareMode, setCompareMode] = useState<ChangeHistoryCompareMode>('unified');
-  const compareModeRef = useRef(compareMode);
-  compareModeRef.current = compareMode;
-
-  const editorOptionsRef = useRef(editorOptions);
-  editorOptionsRef.current = editorOptions;
 
   const isCompareMode = baselineComparison !== undefined;
-
-  const getActiveEditor = useCallback(
-    () => editorRef.current ?? diffEditorRef.current?.getModifiedEditor() ?? null,
-    []
-  );
-
-  const stableConfigureDiffEditors = useCallback(
-    (
-      diffEditor: monaco.editor.IStandaloneDiffEditor,
-      mode: ChangeHistoryCompareMode,
-      extraOptions?: monaco.editor.IEditorOptions
-    ) => configureDiffEditors(diffEditor, mode, extraOptions ?? editorOptionsRef.current),
-    []
-  );
-
-  const editorContext: ChangeHistoryPreviewEditorContext = {
-    isEditorMounted,
-    getActiveEditor,
-    editorRef,
-    diffEditorRef,
-    decorationsRef,
-    compareModeRef,
-    configureDiffEditors: stableConfigureDiffEditors,
-  };
 
   const handleCompareModeChange = useCallback(
     (mode: ChangeHistoryCompareMode) => {
@@ -202,49 +167,6 @@ export const ChangeHistoryMonacoDiffPreview = ({
     }
   }, [baselineComparison, diffTelemetry, targetComparison]);
 
-  const handleDiffPrevious = useCallback(() => {
-    const diffEditor = diffEditorRef.current;
-    if (!diffEditor) {
-      return;
-    }
-
-    const changes = diffEditor.getLineChanges() ?? [];
-    if (changes.length === 0) {
-      return;
-    }
-
-    diffTelemetry?.reportDiffChangeNavigated('line_hunk');
-
-    setDiffCurrentIndex((currentIndex) => {
-      const nextIndex = Math.max(currentIndex - 1, 0);
-      pendingDiffScrollIndexRef.current = null;
-      scrollDiffEditorToChange(diffEditor, nextIndex);
-      return nextIndex;
-    });
-  }, [diffTelemetry]);
-
-  const handleDiffNext = useCallback(() => {
-    const diffEditor = diffEditorRef.current;
-    if (!diffEditor) {
-      return;
-    }
-
-    const changes = diffEditor.getLineChanges() ?? [];
-    if (changes.length === 0) {
-      return;
-    }
-
-    diffTelemetry?.reportDiffChangeNavigated('line_hunk');
-
-    setDiffCurrentIndex((currentIndex) => {
-      const nextIndex = Math.min(currentIndex + 1, Math.max(changes.length - 1, 0));
-      pendingDiffScrollIndexRef.current = null;
-      scrollDiffEditorToChange(diffEditor, nextIndex);
-      return nextIndex;
-    });
-  }, [diffTelemetry]);
-
-  const showDiffNavigator = isCompareMode;
   const hasSettings = isCompareMode || Boolean(extraSettings);
 
   return (
@@ -276,17 +198,17 @@ export const ChangeHistoryMonacoDiffPreview = ({
           editorOptions={editorOptions}
           data-test-subj={dataTestSubj}
           compareMode={compareMode}
-          editorRef={editorRef}
-          diffEditorRef={diffEditorRef}
-          decorationsRef={decorationsRef}
-          pendingDiffScrollIndexRef={pendingDiffScrollIndexRef}
-          onEditorMountedChange={setIsEditorMounted}
-          setDiffCurrentIndex={setDiffCurrentIndex}
-          setDiffTotalChanges={setDiffTotalChanges}
+          diffTelemetry={diffTelemetry}
+          onEditorContextChange={setEditorContext}
+          onDiffNavigationChange={setDiffNavigation}
         />
 
         <div css={styles.footer} data-test-subj={`${dataTestSubj}Footer`}>
-          {renderFooter ? renderFooter(editorContext) : <ChangeHistoryPreviewFooterSpacer />}
+          {renderFooter && editorContext ? (
+            renderFooter(editorContext)
+          ) : (
+            <ChangeHistoryPreviewFooterSpacer />
+          )}
           {hasSettings ? (
             <ChangeHistoryPreviewSettingsPopover
               hasCompare={isCompareMode}
@@ -298,13 +220,13 @@ export const ChangeHistoryMonacoDiffPreview = ({
           ) : null}
         </div>
       </div>
-      {showDiffNavigator && (
+      {isCompareMode && diffNavigation && (
         <div css={styles.floatingToolbar}>
           <ChangeHistoryDiffNavigator
-            currentIndex={diffCurrentIndex}
-            totalChanges={diffTotalChanges}
-            onPrevious={handleDiffPrevious}
-            onNext={handleDiffNext}
+            currentIndex={diffNavigation.currentIndex}
+            totalChanges={diffNavigation.totalChanges}
+            onPrevious={diffNavigation.onPrevious}
+            onNext={diffNavigation.onNext}
           />
         </div>
       )}

@@ -5,8 +5,7 @@
  * 2.0.
  */
 
-import type { MutableRefObject } from 'react';
-import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { UseEuiTheme } from '@elastic/eui';
 import { EuiText } from '@elastic/eui';
@@ -15,7 +14,11 @@ import { monaco } from '@kbn/code-editor';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 
 import type { ChangeHistoryCompareMode } from '../../telemetry';
-import type { ChangeHistoryMonacoLanguage } from './change_history_monaco_diff_preview';
+import type { ChangeHistoryDiffTelemetry } from '../../types';
+import type {
+  ChangeHistoryMonacoLanguage,
+  ChangeHistoryPreviewEditorContext,
+} from './change_history_monaco_diff_preview';
 import { buildChangeHistoryUnifiedDiffLayoutStyles } from './change_history_unified_diff_layout';
 import {
   CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS,
@@ -91,7 +94,7 @@ const getChangeEndLine = (change: monaco.editor.ILineChange): number => {
   return change.originalEndLineNumber;
 };
 
-export const scrollDiffEditorToChange = (
+const scrollDiffEditorToChange = (
   diffEditor: monaco.editor.IStandaloneDiffEditor,
   changeIndex: number
 ): boolean => {
@@ -119,6 +122,14 @@ export const scrollDiffEditorToChange = (
   return true;
 };
 
+/** Diff navigation state and handlers, reported to the parent so it can render the navigator. */
+export interface ChangeHistoryDiffNavigation {
+  currentIndex: number;
+  totalChanges: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}
+
 export interface ChangeHistoryMonacoDiffProps {
   baseline?: string;
   target: string;
@@ -126,14 +137,10 @@ export interface ChangeHistoryMonacoDiffProps {
   monacoTheme?: ChangeHistoryMonacoTheme;
   editorOptions?: monaco.editor.IEditorOptions;
   compareMode: ChangeHistoryCompareMode;
-  /** Editor handles owned by the parent so its footer and navigator can reach the editors. */
-  editorRef: MutableRefObject<monaco.editor.IStandaloneCodeEditor | null>;
-  diffEditorRef: MutableRefObject<monaco.editor.IStandaloneDiffEditor | null>;
-  decorationsRef: MutableRefObject<monaco.editor.IEditorDecorationsCollection | null>;
-  pendingDiffScrollIndexRef: MutableRefObject<number | null>;
-  onEditorMountedChange: (isMounted: boolean) => void;
-  setDiffCurrentIndex: (value: React.SetStateAction<number>) => void;
-  setDiffTotalChanges: (value: React.SetStateAction<number>) => void;
+  diffTelemetry?: ChangeHistoryDiffTelemetry;
+  /** Reports the editor handles and helpers whenever they change, e.g. for the parent's footer. */
+  onEditorContextChange: (context: ChangeHistoryPreviewEditorContext) => void;
+  onDiffNavigationChange: (navigation: ChangeHistoryDiffNavigation) => void;
   'data-test-subj'?: string;
 }
 
@@ -173,18 +180,21 @@ export const ChangeHistoryMonacoDiff = ({
   monacoTheme: monacoThemeProp,
   editorOptions,
   compareMode,
-  editorRef,
-  diffEditorRef,
-  decorationsRef,
-  pendingDiffScrollIndexRef,
-  onEditorMountedChange,
-  setDiffCurrentIndex,
-  setDiffTotalChanges,
+  diffTelemetry,
+  onEditorContextChange,
+  onDiffNavigationChange,
   'data-test-subj': dataTestSubj = 'changeHistoryMonacoPreview',
 }: ChangeHistoryMonacoDiffProps): JSX.Element => {
   const styles = useMemoCss(monacoDiffPreviewStyles);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(null);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+  const [isEditorMounted, setIsEditorMounted] = useState(false);
+  const pendingDiffScrollIndexRef = useRef<number | null>(null);
+  const [diffCurrentIndex, setDiffCurrentIndex] = useState(0);
+  const [diffTotalChanges, setDiffTotalChanges] = useState(0);
 
   const compareModeRef = useRef(compareMode);
   compareModeRef.current = compareMode;
@@ -197,16 +207,92 @@ export const ChangeHistoryMonacoDiff = ({
 
   const isCompareMode = baseline !== undefined;
 
-  const updateDiffState = useCallback(
-    (editor: monaco.editor.IStandaloneDiffEditor) => {
-      const changes = editor.getLineChanges() ?? [];
-      setDiffTotalChanges(changes.length);
-      setDiffCurrentIndex((currentIndex) =>
-        changes.length === 0 ? 0 : Math.min(currentIndex, changes.length - 1)
-      );
-    },
-    [setDiffTotalChanges, setDiffCurrentIndex]
+  const getActiveEditor = useCallback(
+    () => editorRef.current ?? diffEditorRef.current?.getModifiedEditor() ?? null,
+    []
   );
+
+  const stableConfigureDiffEditors = useCallback(
+    (
+      diffEditor: monaco.editor.IStandaloneDiffEditor,
+      mode: ChangeHistoryCompareMode,
+      extraOptions?: monaco.editor.IEditorOptions
+    ) => configureDiffEditors(diffEditor, mode, extraOptions ?? editorOptionsRef.current),
+    []
+  );
+
+  const editorContext = useMemo<ChangeHistoryPreviewEditorContext>(
+    () => ({
+      isEditorMounted,
+      getActiveEditor,
+      editorRef,
+      diffEditorRef,
+      decorationsRef,
+      compareModeRef,
+      configureDiffEditors: stableConfigureDiffEditors,
+    }),
+    [isEditorMounted, getActiveEditor, stableConfigureDiffEditors]
+  );
+
+  useEffect(() => {
+    onEditorContextChange(editorContext);
+  }, [editorContext, onEditorContextChange]);
+
+  const updateDiffState = useCallback((editor: monaco.editor.IStandaloneDiffEditor) => {
+    const changes = editor.getLineChanges() ?? [];
+    setDiffTotalChanges(changes.length);
+    setDiffCurrentIndex((currentIndex) =>
+      changes.length === 0 ? 0 : Math.min(currentIndex, changes.length - 1)
+    );
+  }, []);
+
+  const handleDiffPrevious = useCallback(() => {
+    const diffEditor = diffEditorRef.current;
+    if (!diffEditor || (diffEditor.getLineChanges() ?? []).length === 0) {
+      return;
+    }
+
+    diffTelemetry?.reportDiffChangeNavigated('line_hunk');
+
+    setDiffCurrentIndex((currentIndex) => {
+      const nextIndex = Math.max(currentIndex - 1, 0);
+      pendingDiffScrollIndexRef.current = null;
+      scrollDiffEditorToChange(diffEditor, nextIndex);
+      return nextIndex;
+    });
+  }, [diffTelemetry]);
+
+  const handleDiffNext = useCallback(() => {
+    const diffEditor = diffEditorRef.current;
+    const changes = diffEditor?.getLineChanges() ?? [];
+    if (!diffEditor || changes.length === 0) {
+      return;
+    }
+
+    diffTelemetry?.reportDiffChangeNavigated('line_hunk');
+
+    setDiffCurrentIndex((currentIndex) => {
+      const nextIndex = Math.min(currentIndex + 1, Math.max(changes.length - 1, 0));
+      pendingDiffScrollIndexRef.current = null;
+      scrollDiffEditorToChange(diffEditor, nextIndex);
+      return nextIndex;
+    });
+  }, [diffTelemetry]);
+
+  useEffect(() => {
+    onDiffNavigationChange({
+      currentIndex: diffCurrentIndex,
+      totalChanges: diffTotalChanges,
+      onPrevious: handleDiffPrevious,
+      onNext: handleDiffNext,
+    });
+  }, [
+    diffCurrentIndex,
+    diffTotalChanges,
+    handleDiffPrevious,
+    handleDiffNext,
+    onDiffNavigationChange,
+  ]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -228,7 +314,7 @@ export const ChangeHistoryMonacoDiff = ({
       diffEditor.layout();
       diffEditorRef.current = diffEditor;
       editorRef.current = null;
-      onEditorMountedChange(true);
+      setIsEditorMounted(true);
       pendingDiffScrollIndexRef.current = 0;
       setDiffCurrentIndex(0);
 
@@ -250,7 +336,7 @@ export const ChangeHistoryMonacoDiff = ({
         diffEditorRef.current = null;
         decorationsRef.current?.clear();
         decorationsRef.current = null;
-        onEditorMountedChange(false);
+        setIsEditorMounted(false);
       };
     }
 
@@ -265,7 +351,7 @@ export const ChangeHistoryMonacoDiff = ({
 
     editorRef.current = editor;
     diffEditorRef.current = null;
-    onEditorMountedChange(true);
+    setIsEditorMounted(true);
     setDiffTotalChanges(0);
     setDiffCurrentIndex(0);
 
@@ -275,23 +361,9 @@ export const ChangeHistoryMonacoDiff = ({
       editorRef.current = null;
       decorationsRef.current?.clear();
       decorationsRef.current = null;
-      onEditorMountedChange(false);
+      setIsEditorMounted(false);
     };
-  }, [
-    baseline,
-    language,
-    monacoTheme,
-    target,
-    updateDiffState,
-    isCompareMode,
-    onEditorMountedChange,
-    setDiffTotalChanges,
-    setDiffCurrentIndex,
-    diffEditorRef,
-    editorRef,
-    decorationsRef,
-    pendingDiffScrollIndexRef,
-  ]);
+  }, [baseline, language, monacoTheme, target, updateDiffState, isCompareMode]);
 
   useEffect(() => {
     const diffEditor = diffEditorRef.current;
@@ -305,7 +377,7 @@ export const ChangeHistoryMonacoDiff = ({
     });
     configureDiffEditors(diffEditor, compareMode, editorOptionsRef.current);
     diffEditor.layout();
-  }, [compareMode, isCompareMode, diffEditorRef]);
+  }, [compareMode, isCompareMode]);
 
   // Consumer-supplied options (e.g. validation display) are applied after mount and on change.
   useEffect(() => {
@@ -319,7 +391,7 @@ export const ChangeHistoryMonacoDiff = ({
       diffEditor.updateOptions(editorOptions);
       configureDiffEditors(diffEditor, compareModeRef.current, editorOptions);
     }
-  }, [editorOptions, baseline, target, language, monacoTheme, editorRef, diffEditorRef]);
+  }, [editorOptions, baseline, target, language, monacoTheme]);
 
   return (
     <EuiText
