@@ -84,6 +84,7 @@ export const DashboardChangeHistoryProvider = ({
                 compareIndicator={getDashboardChangeHistoryCompareIndicator(props.compareSpec)}
                 diffTelemetry={props.diffTelemetry}
                 renderFooter={(context) => <>here</>}
+                language={'json'}
               />
             ) : (
               <Suspense fallback={<EuiLoadingSpinner size="xl" />}>
