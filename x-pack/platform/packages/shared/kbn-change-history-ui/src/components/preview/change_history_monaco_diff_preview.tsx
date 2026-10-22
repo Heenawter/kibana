@@ -195,21 +195,6 @@ const toText = (value: string | object): string =>
   typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 
 const monacoDiffPreviewStyles = {
-  editor: (themeContext: UseEuiTheme) =>
-    css({
-      flex: '1 1 0',
-      minHeight: 0,
-      overflow: 'hidden',
-      position: 'relative',
-      zIndex: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      // Monaco scrollbars default to z-index 11; keep them below floating overlays.
-      ...buildChangeHistoryUnifiedDiffLayoutStyles(themeContext),
-      '& .monaco-editor .scrollbar': {
-        zIndex: 1,
-      },
-    }),
   monacoHost: (themeContext: UseEuiTheme) =>
     css`
       flex: 1 1 auto;
@@ -248,11 +233,16 @@ const monacoDiffPreviewStyles = {
   floatingToolbar: ({ euiTheme }: UseEuiTheme) =>
     css({
       position: 'relative',
-      left: '50%',
-      bottom: FLOATING_NAVIGATOR_BOTTOM,
-      transform: 'translateX(-50%)',
-      zIndex: euiTheme.levels.modal,
-      flex: '0 0 auto',
+      width: '100%',
+      height: '0px',
+
+      '.diffNavigatorToolbar': {
+        position: 'absolute',
+        left: '50%',
+        bottom: FLOATING_NAVIGATOR_BOTTOM,
+        transform: 'translateX(-50%)',
+        zIndex: euiTheme.levels.modal,
+      },
     }),
 };
 
@@ -504,7 +494,7 @@ export const ChangeHistoryMonacoDiffPreview = ({
           containerStyles?.(euiThemeContext),
           css`
             display: grid;
-            grid-template-rows: auto 1fr auto; /* Header, Content (fills space), Footer */
+            grid-template-rows: auto 1fr auto 0fr; /* Header, Content (fills space), Footer */
             height: 100%;
             width: 100%;
           `,
@@ -539,18 +529,18 @@ export const ChangeHistoryMonacoDiffPreview = ({
               {extraSettings}
             </ChangeHistoryPreviewSettingsPopover>
           ) : null}
-          {showDiffNavigator && (
-            <div css={styles.floatingToolbar}>
-              <ChangeHistoryDiffNavigator
-                currentIndex={diffCurrentIndex}
-                totalChanges={diffTotalChanges}
-                onPrevious={handleDiffPrevious}
-                onNext={handleDiffNext}
-              />
-            </div>
-          )}
         </div>
       </div>
+      {showDiffNavigator && (
+        <div css={styles.floatingToolbar}>
+          <ChangeHistoryDiffNavigator
+            currentIndex={diffCurrentIndex}
+            totalChanges={diffTotalChanges}
+            onPrevious={handleDiffPrevious}
+            onNext={handleDiffNext}
+          />
+        </div>
+      )}
     </>
   );
 };

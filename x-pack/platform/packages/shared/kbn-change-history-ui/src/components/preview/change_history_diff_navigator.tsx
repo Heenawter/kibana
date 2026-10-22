@@ -108,6 +108,7 @@ export const ChangeHistoryDiffNavigator = ({
     <EuiFlexGroup
       css={styles.toolbar}
       gutterSize="s"
+      className={'diffNavigatorToolbar'}
       alignItems="center"
       responsive={false}
       wrap={false}

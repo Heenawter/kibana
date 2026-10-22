@@ -10,7 +10,7 @@ import type { UseEuiTheme } from '@elastic/eui';
 /**
  * Unified (inline) diff layout selectors — Monaco positions `.editor.original` at left:0
  * with width = max(5px, decorationsLeft). Collapse original and stretch modified to
- * prevent content bleed into the gutter. Scoped to `:not(.side-by-side)` only.
+ * prevent content bleed into the gutter.
  */
 export const CHANGE_HISTORY_UNIFIED_DIFF_COLLAPSE_ORIGINAL_SELECTOR =
   '& .monaco-diff-editor:not(.side-by-side) .editor.original';
@@ -33,8 +33,4 @@ export const buildChangeHistoryUnifiedDiffLayoutStyles = (
     right: '0',
     width: 'auto !important',
   },
-  '& .monaco-diff-editor.side-by-side .insert-sign, & .monaco-diff-editor.side-by-side .delete-sign':
-    {
-      justifyContent: 'center',
-    },
 });
