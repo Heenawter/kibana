@@ -524,46 +524,66 @@ export const ChangeHistoryMonacoDiffPreview = ({
   return (
     <div
       css={[
-        css`
-          display: grid;
-          grid-template-rows: auto 1fr auto; /* Header, Content (fills space), Footer */
-          height: 100%;
-        `,
         containerStyles?.(euiThemeContext),
+        css`
+          height: 100%;
+          width: 100%;
+        `,
       ]}
     >
-      {isCompareMode && compareIndicator ? (
-        compareMode === 'split' ? (
-          <ChangeHistoryCompareSplitPaneLabels indicator={compareIndicator} />
-        ) : (
-          <ChangeHistoryCompareIndicatorBar indicator={compareIndicator} />
-        )
-      ) : null}
-      <EuiText
-        component="div"
+      <div
         css={[
-          styles.monacoHost,
-          isCompareMode && compareMode === 'split' ? styles.monacoHostSplit : undefined,
-          isCompareMode && compareMode === 'unified' ? styles.monacoHostUnified : undefined,
+          css`
+            display: grid;
+            grid-template-rows: auto 1fr auto; /* Header, Content (fills space), Footer */
+            height: 100%;
+            width: 100%;
+          `,
         ]}
       >
-        <div ref={containerRef} data-test-subj={`${dataTestSubj}Editor`} />
-      </EuiText>
-      <div css={styles.footer}>
-        <div css={styles.footerContent} data-test-subj={`${dataTestSubj}Footer`}>
-          {renderFooter ? renderFooter(editorContext) : <ChangeHistoryPreviewFooterSpacer />}
-        </div>
-        {hasSettings ? (
-          <div css={styles.footerSettingsAnchor}>
-            <ChangeHistoryPreviewSettingsPopover
-              hasCompare={isCompareMode}
-              compareMode={compareMode}
-              onCompareModeChange={handleCompareModeChange}
-            >
-              {extraSettings}
-            </ChangeHistoryPreviewSettingsPopover>
-          </div>
+        {isCompareMode && compareIndicator ? (
+          compareMode === 'split' ? (
+            <ChangeHistoryCompareSplitPaneLabels indicator={compareIndicator} />
+          ) : (
+            <ChangeHistoryCompareIndicatorBar indicator={compareIndicator} />
+          )
         ) : null}
+        <EuiText
+          component="div"
+          css={[
+            styles.monacoHost,
+            isCompareMode && compareMode === 'split' ? styles.monacoHostSplit : undefined,
+            isCompareMode && compareMode === 'unified' ? styles.monacoHostUnified : undefined,
+          ]}
+        >
+          <div ref={containerRef} data-test-subj={`${dataTestSubj}Editor`} />
+        </EuiText>
+        <div css={styles.footer}>
+          <div css={styles.footerContent} data-test-subj={`${dataTestSubj}Footer`}>
+            {renderFooter ? renderFooter(editorContext) : <ChangeHistoryPreviewFooterSpacer />}
+          </div>
+          {hasSettings ? (
+            <div css={styles.footerSettingsAnchor}>
+              <ChangeHistoryPreviewSettingsPopover
+                hasCompare={isCompareMode}
+                compareMode={compareMode}
+                onCompareModeChange={handleCompareModeChange}
+              >
+                {extraSettings}
+              </ChangeHistoryPreviewSettingsPopover>
+            </div>
+          ) : null}
+          {showDiffNavigator && (
+            <div css={styles.floatingToolbar}>
+              <ChangeHistoryDiffNavigator
+                currentIndex={diffCurrentIndex}
+                totalChanges={diffTotalChanges}
+                onPrevious={handleDiffPrevious}
+                onNext={handleDiffNext}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
 

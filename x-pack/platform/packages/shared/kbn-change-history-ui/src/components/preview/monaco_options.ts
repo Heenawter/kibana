@@ -21,6 +21,7 @@ export const CHANGE_HISTORY_PREVIEW_MONACO_OPTIONS: monaco.editor.IStandaloneEdi
     scrollBeyondLastLine: false,
     folding: false,
     showFoldingControls: 'never',
+    stickyScroll: { enabled: false },
     tabSize: 2,
     insertSpaces: true,
     fontSize: 14,
