@@ -10,14 +10,8 @@ import { EuiBadge, EuiFlexGroup, EuiFlexItem, EuiText, useEuiTheme } from '@elas
 import { css } from '@emotion/react';
 import React from 'react';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
+import { i18n } from '@kbn/i18n';
 import { changeHistoryPreviewTypography } from './change_history_preview_typography';
-import {
-  COMPARING_WITH_LABEL,
-  PREVIOUS_VERSION_LABEL,
-  SELECTED_VERSION_LABEL,
-  VERSION_BADGE,
-  VERSION_BADGE_FALLBACK,
-} from './translations';
 
 export type ChangeHistoryCompareBadgeColor = 'hollow' | 'warning';
 
@@ -33,122 +27,6 @@ export interface ChangeHistoryCompareIndicatorProps {
   indicator: ChangeHistoryCompareIndicator;
 }
 
-const VersionBadge = ({
-  version,
-  badgeLabel,
-  badgeColor = 'hollow',
-  testSubj,
-}: {
-  version?: number;
-  badgeLabel?: string;
-  badgeColor?: ChangeHistoryCompareBadgeColor;
-  testSubj: string;
-}): JSX.Element | null => {
-  const { euiTheme } = useEuiTheme();
-
-  if (version != null) {
-    return (
-      <EuiBadge color="hollow" css={versionBadgeStyle} data-test-subj={testSubj}>
-        {VERSION_BADGE(version)}
-      </EuiBadge>
-    );
-  }
-
-  if (badgeLabel) {
-    return (
-      <EuiBadge
-        color={badgeColor === 'warning' ? euiTheme.colors.backgroundLightWarning : 'hollow'}
-        css={versionBadgeStyle}
-        data-test-subj={testSubj}
-      >
-        {badgeLabel}
-      </EuiBadge>
-    );
-  }
-
-  return (
-    <EuiText size="s" color="subdued" data-test-subj={testSubj}>
-      {VERSION_BADGE_FALLBACK}
-    </EuiText>
-  );
-};
-
-export const ChangeHistoryCompareIndicatorBar = ({
-  indicator,
-}: ChangeHistoryCompareIndicatorProps): JSX.Element => {
-  const styles = useMemoCss(componentStyles);
-
-  return (
-    <EuiFlexGroup
-      gutterSize="s"
-      alignItems="center"
-      responsive={false}
-      css={styles.unifiedContainer}
-      data-test-subj="changeHistoryCompareIndicator"
-    >
-      <EuiFlexItem grow={false}>
-        <EuiText size="s" css={styles.label}>
-          {COMPARING_WITH_LABEL}
-        </EuiText>
-      </EuiFlexItem>
-      <EuiFlexItem grow={false}>
-        <VersionBadge
-          version={indicator.baselineVersion}
-          testSubj="changeHistoryCompareIndicatorBadge"
-        />
-      </EuiFlexItem>
-    </EuiFlexGroup>
-  );
-};
-
-export const ChangeHistoryCompareSplitPaneLabels = ({
-  indicator,
-}: ChangeHistoryCompareIndicatorProps): JSX.Element => {
-  const styles = useMemoCss(componentStyles);
-
-  return (
-    <EuiFlexGroup
-      gutterSize="none"
-      responsive={false}
-      css={styles.splitContainer}
-      data-test-subj="changeHistoryCompareSplitPaneLabels"
-    >
-      <EuiFlexItem css={styles.splitPaneLeft}>
-        <EuiFlexGroup gutterSize="s" alignItems="center" responsive={false}>
-          <EuiFlexItem grow={false}>
-            <EuiText size="s" css={styles.label}>
-              {PREVIOUS_VERSION_LABEL}
-            </EuiText>
-          </EuiFlexItem>
-          <EuiFlexItem grow={false}>
-            <VersionBadge
-              version={indicator.baselineVersion}
-              testSubj="changeHistoryCompareSplitBaselineBadge"
-            />
-          </EuiFlexItem>
-        </EuiFlexGroup>
-      </EuiFlexItem>
-      <EuiFlexItem css={styles.splitPaneRight}>
-        <EuiFlexGroup gutterSize="s" alignItems="center" responsive={false}>
-          <EuiFlexItem grow={false}>
-            <EuiText size="s" css={styles.label}>
-              {SELECTED_VERSION_LABEL}
-            </EuiText>
-          </EuiFlexItem>
-          <EuiFlexItem grow={false}>
-            <VersionBadge
-              version={indicator.currentVersion}
-              badgeLabel={indicator.currentBadgeLabel}
-              badgeColor={indicator.currentBadgeColor}
-              testSubj="changeHistoryCompareSplitCurrentBadge"
-            />
-          </EuiFlexItem>
-        </EuiFlexGroup>
-      </EuiFlexItem>
-    </EuiFlexGroup>
-  );
-};
-
 const versionBadgeStyle = css({
   fontWeight: 500,
 });
@@ -159,7 +37,7 @@ const compareHeaderBaseStyle = ({ euiTheme }: UseEuiTheme) =>
     borderBottom: euiTheme.border.thin,
   });
 
-const componentStyles = {
+const compareIndicatorStyles = {
   unifiedContainer: (themeContext: UseEuiTheme) =>
     css(compareHeaderBaseStyle(themeContext), {
       padding: `${themeContext.euiTheme.size.s} ${themeContext.euiTheme.size.m}`,
@@ -181,4 +59,131 @@ const componentStyles = {
       color: euiTheme.colors.textParagraph,
       fontWeight: euiTheme.font.weight.regular,
     }),
+};
+
+const VersionBadge = ({
+  version,
+  badgeLabel,
+  badgeColor = 'hollow',
+  testSubj,
+}: {
+  version?: number;
+  badgeLabel?: string;
+  badgeColor?: ChangeHistoryCompareBadgeColor;
+  testSubj: string;
+}): JSX.Element | null => {
+  const { euiTheme } = useEuiTheme();
+
+  if (version != null) {
+    return (
+      <EuiBadge color="hollow" css={versionBadgeStyle} data-test-subj={testSubj}>
+        {i18n.translate('xpack.changeHistoryUi.preview.versionBadge', {
+          defaultMessage: 'v{version}',
+          values: { version },
+        })}
+      </EuiBadge>
+    );
+  }
+
+  if (badgeLabel) {
+    return (
+      <EuiBadge
+        color={badgeColor === 'warning' ? euiTheme.colors.backgroundLightWarning : 'hollow'}
+        css={versionBadgeStyle}
+        data-test-subj={testSubj}
+      >
+        {badgeLabel}
+      </EuiBadge>
+    );
+  }
+
+  return (
+    <EuiText size="s" color="subdued" data-test-subj={testSubj}>
+      {i18n.translate('xpack.changeHistoryUi.preview.versionBadgeFallback', {
+        defaultMessage: 'Selected version',
+      })}
+    </EuiText>
+  );
+};
+
+export const ChangeHistoryCompareIndicatorBar = ({
+  indicator,
+}: ChangeHistoryCompareIndicatorProps): JSX.Element => {
+  const styles = useMemoCss(compareIndicatorStyles);
+
+  return (
+    <EuiFlexGroup
+      gutterSize="s"
+      alignItems="center"
+      responsive={false}
+      css={styles.unifiedContainer}
+      data-test-subj="changeHistoryCompareIndicator"
+    >
+      <EuiFlexItem grow={false}>
+        <EuiText size="s" css={styles.label}>
+          {i18n.translate('xpack.changeHistoryUi.preview.comparingWithLabel', {
+            defaultMessage: 'Comparing with:',
+          })}
+        </EuiText>
+      </EuiFlexItem>
+      <EuiFlexItem grow={false}>
+        <VersionBadge
+          version={indicator.baselineVersion}
+          testSubj="changeHistoryCompareIndicatorBadge"
+        />
+      </EuiFlexItem>
+    </EuiFlexGroup>
+  );
+};
+
+export const ChangeHistoryCompareSplitPaneLabels = ({
+  indicator,
+}: ChangeHistoryCompareIndicatorProps): JSX.Element => {
+  const styles = useMemoCss(compareIndicatorStyles);
+
+  return (
+    <EuiFlexGroup
+      gutterSize="none"
+      responsive={false}
+      css={styles.splitContainer}
+      data-test-subj="changeHistoryCompareSplitPaneLabels"
+    >
+      <EuiFlexItem css={styles.splitPaneLeft}>
+        <EuiFlexGroup gutterSize="s" alignItems="center" responsive={false}>
+          <EuiFlexItem grow={false}>
+            <EuiText size="s" css={styles.label}>
+              {i18n.translate('xpack.changeHistoryUi.preview.previousVersionLabel', {
+                defaultMessage: 'Previous version:',
+              })}
+            </EuiText>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <VersionBadge
+              version={indicator.baselineVersion}
+              testSubj="changeHistoryCompareSplitBaselineBadge"
+            />
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      </EuiFlexItem>
+      <EuiFlexItem css={styles.splitPaneRight}>
+        <EuiFlexGroup gutterSize="s" alignItems="center" responsive={false}>
+          <EuiFlexItem grow={false}>
+            <EuiText size="s" css={styles.label}>
+              {i18n.translate('xpack.changeHistoryUi.preview.selectedVersionLabel', {
+                defaultMessage: 'Selected version:',
+              })}
+            </EuiText>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <VersionBadge
+              version={indicator.currentVersion}
+              badgeLabel={indicator.currentBadgeLabel}
+              badgeColor={indicator.currentBadgeColor}
+              testSubj="changeHistoryCompareSplitCurrentBadge"
+            />
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      </EuiFlexItem>
+    </EuiFlexGroup>
+  );
 };

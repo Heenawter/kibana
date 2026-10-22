@@ -28,6 +28,25 @@ const PANEL_SECTION_PADDING = 16;
 const PANEL_CLASS = 'changeHistoryPreviewSettingsPopoverPanel';
 const SETTINGS_BUTTON_TEST_SUBJ = 'changeHistoryPreviewSettingsButton';
 
+const settingsPopoverStyles = {
+  panel: ({ euiTheme }: UseEuiTheme) =>
+    css(changeHistoryPreviewTypography, {
+      width: 'fit-content',
+      backgroundColor: euiTheme.colors.backgroundBasePlain,
+      borderRadius: euiTheme.border.radius.medium,
+      overflow: 'hidden',
+    }),
+  sections: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      '& > * + *': {
+        borderTop: euiTheme.border.thin,
+      },
+    }),
+  section: css({
+    padding: `${PANEL_SECTION_PADDING}px`,
+  }),
+};
+
 export interface ChangeHistoryPreviewSettingsPopoverProps {
   /** Whether a diff is shown. The compare mode setting is only rendered in diff mode. */
   hasCompare: boolean;
@@ -47,7 +66,7 @@ export const ChangeHistoryPreviewSettingsPopover = ({
   onCompareModeChange,
   children,
 }: ChangeHistoryPreviewSettingsPopoverProps): JSX.Element => {
-  const styles = useMemoCss(componentStyles);
+  const styles = useMemoCss(settingsPopoverStyles);
   const [isOpen, setIsOpen] = useState(false);
   const popoverTitleId = useGeneratedHtmlId({
     prefix: 'changeHistoryPreviewSettingsTitle',
@@ -128,29 +147,10 @@ export const ChangeHistoryPreviewSettingsSection = ({
 }: {
   children: ReactNode;
 }): JSX.Element => {
-  const styles = useMemoCss(componentStyles);
+  const styles = useMemoCss(settingsPopoverStyles);
   return (
     <EuiText component="div" css={styles.section}>
       {children}
     </EuiText>
   );
-};
-
-const componentStyles = {
-  panel: ({ euiTheme }: UseEuiTheme) =>
-    css(changeHistoryPreviewTypography, {
-      width: 'fit-content',
-      backgroundColor: euiTheme.colors.backgroundBasePlain,
-      borderRadius: euiTheme.border.radius.medium,
-      overflow: 'hidden',
-    }),
-  sections: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      '& > * + *': {
-        borderTop: euiTheme.border.thin,
-      },
-    }),
-  section: css({
-    padding: `${PANEL_SECTION_PADDING}px`,
-  }),
 };

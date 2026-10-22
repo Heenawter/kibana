@@ -187,13 +187,98 @@ export interface ChangeHistoryMonacoDiffPreviewProps {
   extraSettings?: ReactNode;
   /** Extra Emotion styles for the preview root, e.g. to style validation decoration classes. */
   containerStyles?: (theme: UseEuiTheme) => Interpolation<Theme>;
-  /** CSS height of the preview. Defaults to `100%`. */
-  height?: string | number;
+
   'data-test-subj'?: string;
 }
 
 const toText = (value: string | object): string =>
   typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+
+const monacoDiffPreviewStyles = {
+  editor: (themeContext: UseEuiTheme) =>
+    css({
+      flex: '1 1 0',
+      minHeight: 0,
+      overflow: 'hidden',
+      position: 'relative',
+      zIndex: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      // Monaco scrollbars default to z-index 11; keep them below floating overlays.
+      ...buildChangeHistoryUnifiedDiffLayoutStyles(themeContext),
+      '& .monaco-editor .scrollbar': {
+        zIndex: 1,
+      },
+    }),
+  monacoHost: (themeContext: UseEuiTheme) =>
+    css`
+      flex: 1 1 auto;
+      min-height: 0;
+      height: 100%;
+      padding: 0 ${themeContext.euiTheme.size.m};
+      & > div {
+        height: 100%;
+      }
+
+      /* Monaco draws its own scrollbars; match EUI's thin, rounded scrollbar. */
+      .monaco-scrollable-element > .scrollbar > .slider {
+        width: calc(${themeContext.euiTheme.size.s} * 0.75) !important;
+        border-radius: ${themeContext.euiTheme.border.radius.medium} !important;
+        margin-right: 2px;
+      }
+    `,
+  monacoHostSplit: css({
+    padding: 0,
+  }),
+  monacoHostUnified: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      paddingLeft: `calc(${euiTheme.size.m} + ${euiTheme.size.s})`,
+    }),
+  footer: css({
+    position: 'relative',
+    zIndex: 1,
+  }),
+  footerContent: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      width: '100%',
+      flexShrink: 0,
+      minHeight: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
+      overflow: 'hidden',
+      backgroundColor: euiTheme.colors.backgroundBaseSubdued,
+
+      '.euiAccordion': {
+        backgroundColor: euiTheme.colors.backgroundBaseSubdued,
+        borderTop: euiTheme.border.thin,
+      },
+    }),
+  footerSettingsAnchor: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      position: 'absolute',
+      right: euiTheme.size.m,
+      top: 0,
+      height: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
+      display: 'flex',
+      alignItems: 'center',
+      zIndex: 2,
+    }),
+  floatingToolbar: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      position: 'absolute',
+      left: '50%',
+      // Overlap the editor/footer seam; must sit above the footer accordion.
+      bottom: FLOATING_NAVIGATOR_BOTTOM,
+      transform: 'translateX(-50%)',
+      zIndex: euiTheme.levels.modal,
+      flex: '0 0 auto',
+      width: 'auto',
+      height: 'auto',
+      pointerEvents: 'none',
+
+      '& > *': {
+        pointerEvents: 'auto',
+      },
+    }),
+};
 
 export const ChangeHistoryMonacoDiffPreview = ({
   baseline,
@@ -206,10 +291,9 @@ export const ChangeHistoryMonacoDiffPreview = ({
   renderFooter,
   extraSettings,
   containerStyles,
-  height = '100%',
   'data-test-subj': dataTestSubj = 'changeHistoryMonacoPreview',
 }: ChangeHistoryMonacoDiffPreviewProps): JSX.Element => {
-  const styles = useMemoCss(componentStyles);
+  const styles = useMemoCss(monacoDiffPreviewStyles);
   const euiThemeContext = useEuiTheme();
   const baselineYaml = useMemo(
     () => (baseline === undefined ? undefined : toText(baseline)),
@@ -436,34 +520,36 @@ export const ChangeHistoryMonacoDiffPreview = ({
 
   const hasSettings = isCompareMode || Boolean(extraSettings);
 
+  console.log({ isCompareMode, compareMode, containerRef });
   return (
-    <EuiFlexGroup
-      direction="column"
-      gutterSize="none"
-      responsive={false}
-      css={[styles.container, { height }, containerStyles?.(euiThemeContext)]}
-      data-test-subj={dataTestSubj}
+    <div
+      css={[
+        css`
+          display: grid;
+          grid-template-rows: auto 1fr auto; /* Header, Content (fills space), Footer */
+          height: 100%;
+        `,
+        containerStyles?.(euiThemeContext),
+      ]}
     >
-      <EuiFlexItem css={styles.editor} grow={true}>
-        {isCompareMode && compareIndicator ? (
-          compareMode === 'split' ? (
-            <ChangeHistoryCompareSplitPaneLabels indicator={compareIndicator} />
-          ) : (
-            <ChangeHistoryCompareIndicatorBar indicator={compareIndicator} />
-          )
-        ) : null}
-        <EuiText
-          component="div"
-          css={[
-            styles.monacoHost,
-            isCompareMode && compareMode === 'split' ? styles.monacoHostSplit : undefined,
-            isCompareMode && compareMode === 'unified' ? styles.monacoHostUnified : undefined,
-          ]}
-        >
-          <div ref={containerRef} data-test-subj={`${dataTestSubj}Editor`} />
-        </EuiText>
-      </EuiFlexItem>
-      <EuiFlexItem css={styles.footer} grow={false}>
+      {isCompareMode && compareIndicator ? (
+        compareMode === 'split' ? (
+          <ChangeHistoryCompareSplitPaneLabels indicator={compareIndicator} />
+        ) : (
+          <ChangeHistoryCompareIndicatorBar indicator={compareIndicator} />
+        )
+      ) : null}
+      <EuiText
+        component="div"
+        css={[
+          styles.monacoHost,
+          isCompareMode && compareMode === 'split' ? styles.monacoHostSplit : undefined,
+          isCompareMode && compareMode === 'unified' ? styles.monacoHostUnified : undefined,
+        ]}
+      >
+        <div ref={containerRef} data-test-subj={`${dataTestSubj}Editor`} />
+      </EuiText>
+      <div css={styles.footer}>
         <div css={styles.footerContent} data-test-subj={`${dataTestSubj}Footer`}>
           {renderFooter ? renderFooter(editorContext) : <ChangeHistoryPreviewFooterSpacer />}
         </div>
@@ -478,104 +564,61 @@ export const ChangeHistoryMonacoDiffPreview = ({
             </ChangeHistoryPreviewSettingsPopover>
           </div>
         ) : null}
-      </EuiFlexItem>
-      {showDiffNavigator ? (
-        <EuiFlexItem css={styles.floatingToolbar} grow={false}>
-          <ChangeHistoryDiffNavigator
-            currentIndex={diffCurrentIndex}
-            totalChanges={diffTotalChanges}
-            onPrevious={handleDiffPrevious}
-            onNext={handleDiffNext}
-          />
-        </EuiFlexItem>
-      ) : null}
-    </EuiFlexGroup>
+      </div>
+    </div>
+
+    // <EuiFlexGroup
+    //   direction="column"
+    //   gutterSize="none"
+    //   responsive={false}
+    //   css={[styles.container, { height }, containerStyles?.(euiThemeContext)]}
+    //   data-test-subj={dataTestSubj}
+    // >
+    //   <EuiFlexItem css={styles.editor} grow={true}>
+    // {isCompareMode && compareIndicator ? (
+    //   compareMode === 'split' ? (
+    //     <ChangeHistoryCompareSplitPaneLabels indicator={compareIndicator} />
+    //   ) : (
+    //     <ChangeHistoryCompareIndicatorBar indicator={compareIndicator} />
+    //   )
+    // ) : null}
+    // <EuiText
+    //   component="div"
+    //   css={[
+    //     styles.monacoHost,
+    //     isCompareMode && compareMode === 'split' ? styles.monacoHostSplit : undefined,
+    //     isCompareMode && compareMode === 'unified' ? styles.monacoHostUnified : undefined,
+    //   ]}
+    // >
+    //   <div ref={containerRef} data-test-subj={`${dataTestSubj}Editor`} />
+    // </EuiText>
+    //   </EuiFlexItem>
+    // <EuiFlexItem css={styles.footer} grow={false}>
+    //   <div css={styles.footerContent} data-test-subj={`${dataTestSubj}Footer`}>
+    //     {renderFooter ? renderFooter(editorContext) : <ChangeHistoryPreviewFooterSpacer />}
+    //   </div>
+    //   {hasSettings ? (
+    //     <div css={styles.footerSettingsAnchor}>
+    //       <ChangeHistoryPreviewSettingsPopover
+    //         hasCompare={isCompareMode}
+    //         compareMode={compareMode}
+    //         onCompareModeChange={handleCompareModeChange}
+    //       >
+    //         {extraSettings}
+    //       </ChangeHistoryPreviewSettingsPopover>
+    //     </div>
+    //   ) : null}
+    // </EuiFlexItem>
+    //   {showDiffNavigator ? (
+    //     <EuiFlexItem css={styles.floatingToolbar} grow={false}>
+    // <ChangeHistoryDiffNavigator
+    //   currentIndex={diffCurrentIndex}
+    //   totalChanges={diffTotalChanges}
+    //   onPrevious={handleDiffPrevious}
+    //   onNext={handleDiffNext}
+    // />
+    //     </EuiFlexItem>
+    //   ) : null}
+    // </EuiFlexGroup>
   );
-};
-
-const componentStyles = {
-  container: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      position: 'relative',
-      display: 'flex',
-      flexDirection: 'column',
-      minHeight: 0,
-    }),
-  editor: (themeContext: UseEuiTheme) =>
-    css({
-      flex: '1 1 0',
-      minHeight: 0,
-      overflow: 'hidden',
-      position: 'relative',
-      zIndex: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      // Monaco scrollbars default to z-index 11; keep them below floating overlays.
-      ...buildChangeHistoryUnifiedDiffLayoutStyles(themeContext),
-      '& .monaco-editor .scrollbar': {
-        zIndex: 1,
-      },
-    }),
-  monacoHost: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      flex: '1 1 auto',
-      minHeight: 0,
-      height: '100%',
-      padding: `0 ${euiTheme.size.m}`,
-
-      '& > div': {
-        height: '100%',
-      },
-    }),
-  monacoHostSplit: css({
-    padding: 0,
-  }),
-  monacoHostUnified: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      paddingLeft: `calc(${euiTheme.size.m} + ${euiTheme.size.s})`,
-    }),
-  footer: css({
-    position: 'relative',
-    zIndex: 1,
-  }),
-  footerContent: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      width: '100%',
-      flexShrink: 0,
-      minHeight: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
-      overflow: 'hidden',
-      backgroundColor: euiTheme.colors.backgroundBaseSubdued,
-
-      '.euiAccordion': {
-        backgroundColor: euiTheme.colors.backgroundBaseSubdued,
-        borderTop: euiTheme.border.thin,
-      },
-    }),
-  footerSettingsAnchor: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      position: 'absolute',
-      right: euiTheme.size.m,
-      top: 0,
-      height: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
-      display: 'flex',
-      alignItems: 'center',
-      zIndex: 2,
-    }),
-  floatingToolbar: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      position: 'absolute',
-      left: '50%',
-      // Overlap the editor/footer seam; must sit above the footer accordion.
-      bottom: FLOATING_NAVIGATOR_BOTTOM,
-      transform: 'translateX(-50%)',
-      zIndex: euiTheme.levels.modal,
-      flex: '0 0 auto',
-      width: 'auto',
-      height: 'auto',
-      pointerEvents: 'none',
-
-      '& > *': {
-        pointerEvents: 'auto',
-      },
-    }),
 };

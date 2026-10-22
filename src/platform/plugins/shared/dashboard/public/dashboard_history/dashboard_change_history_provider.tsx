@@ -83,6 +83,7 @@ export const DashboardChangeHistoryProvider = ({
                 target={props.compareSpec.target.snapshot as object}
                 compareIndicator={getDashboardChangeHistoryCompareIndicator(props.compareSpec)}
                 diffTelemetry={props.diffTelemetry}
+                renderFooter={(context) => <>here</>}
               />
             ) : (
               <Suspense fallback={<EuiLoadingSpinner size="xl" />}>

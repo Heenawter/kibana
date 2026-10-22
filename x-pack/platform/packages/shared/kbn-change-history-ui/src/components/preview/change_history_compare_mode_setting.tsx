@@ -6,13 +6,7 @@
  */
 
 import type { UseEuiTheme } from '@elastic/eui';
-import {
-  EuiText,
-  useEuiTheme,
-  useGeneratedHtmlId,
-  transparentize,
-  EuiHorizontalRule,
-} from '@elastic/eui';
+import { EuiText, useEuiTheme, useGeneratedHtmlId, transparentize } from '@elastic/eui';
 import { ClassNames, css } from '@emotion/react';
 import React, { useCallback, useRef } from 'react';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
@@ -158,6 +152,133 @@ const CompareModeIllustration = ({
   );
 };
 
+const compareModeSettingStyles = {
+  compareSection: () =>
+    css({
+      display: 'flex',
+      flexDirection: 'column',
+      gap: `${SECTION_LABEL_GAP}px`,
+      padding: `${PANEL_SECTION_PADDING}px`,
+    }),
+  sectionLabel: css({
+    fontWeight: 400,
+    fontSize: '14px',
+    lineHeight: '20px',
+    color: 'inherit',
+  }),
+  title: css`
+    ${changeHistoryPreviewTypography}
+    margin: 0;
+    font-weight: var(--Font-weight-Semi-bold, 600);
+    font-size: 14px;
+    line-height: 20px;
+  `,
+  compareTileGroup: css({
+    display: 'grid',
+    gridTemplateColumns: `repeat(2, ${COMPARE_TILE_WIDTH}px)`,
+    gap: `${TILE_GAP}px`,
+    width: 'fit-content',
+  }),
+  compareTile: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      position: 'relative',
+      display: 'flex',
+      flexDirection: 'column',
+      width: `${COMPARE_TILE_WIDTH}px`,
+      height: `${COMPARE_TILE_HEIGHT}px`,
+      minWidth: `${COMPARE_TILE_WIDTH}px`,
+      maxWidth: `${COMPARE_TILE_WIDTH}px`,
+      padding: 0,
+      border: euiTheme.border.thin,
+      borderRadius: '8px',
+      overflow: 'hidden',
+      cursor: 'pointer',
+      backgroundColor: euiTheme.colors.backgroundBasePlain,
+      textAlign: 'left',
+      appearance: 'none',
+      font: 'inherit',
+      color: 'inherit',
+
+      '&:focus-visible': {
+        outline: `${euiTheme.focus.width} solid ${euiTheme.focus.color}`,
+        outlineOffset: 0,
+      },
+    }),
+  compareTileSelected: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      borderColor: euiTheme.colors.borderBasePrimary,
+    }),
+  compareTileSelectedOverlay: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      position: 'absolute',
+      inset: 0,
+      zIndex: 0,
+      borderRadius: '7px',
+      backgroundColor: transparentize(euiTheme.colors.primary, SELECTED_TILE_TINT_ALPHA),
+      pointerEvents: 'none',
+    }),
+  compareTileIllustration: css({
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: `0 0 ${COMPARE_TILE_ILLUSTRATION_HEIGHT}px`,
+    width: '100%',
+    height: `${COMPARE_TILE_ILLUSTRATION_HEIGHT}px`,
+    overflow: 'hidden',
+
+    svg: {
+      display: 'block',
+      flexShrink: 0,
+    },
+  }),
+  compareTileDivider: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      position: 'relative',
+      zIndex: 1,
+      flexShrink: 0,
+      height: '1px',
+      width: '100%',
+      backgroundColor: euiTheme.colors.borderBasePlain,
+    }),
+  compareTileFooter: css({
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    flex: `0 0 ${COMPARE_TILE_FOOTER_HEIGHT}px`,
+    alignItems: 'center',
+    gap: '6px',
+    width: '100%',
+    height: `${COMPARE_TILE_FOOTER_HEIGHT}px`,
+    padding: `0 ${TILE_FOOTER_PADDING_X}px`,
+    boxSizing: 'border-box',
+  }),
+  radioCircle: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      width: '16px',
+      height: '16px',
+      flexShrink: 0,
+      borderRadius: '50%',
+      border: `1px solid ${euiTheme.colors.borderBasePlain}`,
+      backgroundColor: euiTheme.colors.backgroundBasePlain,
+      boxSizing: 'border-box',
+    }),
+  radioCircleSelected: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      borderColor: euiTheme.colors.primary,
+      backgroundColor: euiTheme.colors.primary,
+      boxShadow: `inset 0 0 0 3px ${euiTheme.colors.backgroundBasePlain}`,
+    }),
+  compareTileLabel: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      fontWeight: euiTheme.font.weight.bold,
+      fontSize: '14px',
+      lineHeight: '20px',
+      color: euiTheme.colors.textParagraph,
+    }),
+};
+
 export interface ChangeHistoryCompareModeSettingProps {
   compareMode: ChangeHistoryCompareMode;
   onCompareModeChange: (compareMode: ChangeHistoryCompareMode) => void;
@@ -169,7 +290,7 @@ export const ChangeHistoryCompareModeSetting = ({
   onCompareModeChange,
 }: ChangeHistoryCompareModeSettingProps): JSX.Element => {
   const { euiTheme } = useEuiTheme();
-  const styles = useMemoCss(componentStyles);
+  const styles = useMemoCss(compareModeSettingStyles);
   const unifiedTileRef = useRef<HTMLButtonElement>(null);
   const splitTileRef = useRef<HTMLButtonElement>(null);
   const compareModeGroupLabelId = useGeneratedHtmlId({
@@ -315,131 +436,4 @@ export const ChangeHistoryCompareModeSetting = ({
       </EuiText>
     </EuiText>
   );
-};
-
-const componentStyles = {
-  compareSection: () =>
-    css({
-      display: 'flex',
-      flexDirection: 'column',
-      gap: `${SECTION_LABEL_GAP}px`,
-      padding: `${PANEL_SECTION_PADDING}px`,
-    }),
-  sectionLabel: css({
-    fontWeight: 400,
-    fontSize: '14px',
-    lineHeight: '20px',
-    color: 'inherit',
-  }),
-  title: css`
-    ${changeHistoryPreviewTypography}
-    margin: 0;
-    font-weight: var(--Font-weight-Semi-bold, 600);
-    font-size: 14px;
-    line-height: 20px;
-  `,
-  compareTileGroup: css({
-    display: 'grid',
-    gridTemplateColumns: `repeat(2, ${COMPARE_TILE_WIDTH}px)`,
-    gap: `${TILE_GAP}px`,
-    width: 'fit-content',
-  }),
-  compareTile: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      position: 'relative',
-      display: 'flex',
-      flexDirection: 'column',
-      width: `${COMPARE_TILE_WIDTH}px`,
-      height: `${COMPARE_TILE_HEIGHT}px`,
-      minWidth: `${COMPARE_TILE_WIDTH}px`,
-      maxWidth: `${COMPARE_TILE_WIDTH}px`,
-      padding: 0,
-      border: euiTheme.border.thin,
-      borderRadius: '8px',
-      overflow: 'hidden',
-      cursor: 'pointer',
-      backgroundColor: euiTheme.colors.backgroundBasePlain,
-      textAlign: 'left',
-      appearance: 'none',
-      font: 'inherit',
-      color: 'inherit',
-
-      '&:focus-visible': {
-        outline: `${euiTheme.focus.width} solid ${euiTheme.focus.color}`,
-        outlineOffset: 0,
-      },
-    }),
-  compareTileSelected: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      borderColor: euiTheme.colors.borderBasePrimary,
-    }),
-  compareTileSelectedOverlay: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      position: 'absolute',
-      inset: 0,
-      zIndex: 0,
-      borderRadius: '7px',
-      backgroundColor: transparentize(euiTheme.colors.primary, SELECTED_TILE_TINT_ALPHA),
-      pointerEvents: 'none',
-    }),
-  compareTileIllustration: css({
-    position: 'relative',
-    zIndex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: `0 0 ${COMPARE_TILE_ILLUSTRATION_HEIGHT}px`,
-    width: '100%',
-    height: `${COMPARE_TILE_ILLUSTRATION_HEIGHT}px`,
-    overflow: 'hidden',
-
-    svg: {
-      display: 'block',
-      flexShrink: 0,
-    },
-  }),
-  compareTileDivider: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      position: 'relative',
-      zIndex: 1,
-      flexShrink: 0,
-      height: '1px',
-      width: '100%',
-      backgroundColor: euiTheme.colors.borderBasePlain,
-    }),
-  compareTileFooter: css({
-    position: 'relative',
-    zIndex: 1,
-    display: 'flex',
-    flex: `0 0 ${COMPARE_TILE_FOOTER_HEIGHT}px`,
-    alignItems: 'center',
-    gap: '6px',
-    width: '100%',
-    height: `${COMPARE_TILE_FOOTER_HEIGHT}px`,
-    padding: `0 ${TILE_FOOTER_PADDING_X}px`,
-    boxSizing: 'border-box',
-  }),
-  radioCircle: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      width: '16px',
-      height: '16px',
-      flexShrink: 0,
-      borderRadius: '50%',
-      border: `1px solid ${euiTheme.colors.borderBasePlain}`,
-      backgroundColor: euiTheme.colors.backgroundBasePlain,
-      boxSizing: 'border-box',
-    }),
-  radioCircleSelected: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      borderColor: euiTheme.colors.primary,
-      backgroundColor: euiTheme.colors.primary,
-      boxShadow: `inset 0 0 0 3px ${euiTheme.colors.backgroundBasePlain}`,
-    }),
-  compareTileLabel: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      fontWeight: euiTheme.font.weight.bold,
-      fontSize: '14px',
-      lineHeight: '20px',
-      color: euiTheme.colors.textParagraph,
-    }),
 };

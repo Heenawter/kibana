@@ -28,6 +28,8 @@ export const CHANGE_HISTORY_PREVIEW_MONACO_OPTIONS: monaco.editor.IStandaloneEdi
     renderWhitespace: 'none',
     roundedSelection: false,
     guides: { indentation: true },
+    // Monaco draws its own scrollbars, so the EUI scrollbar mixin can't style them.
+    scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
     wordWrap: 'on',
     wordWrapColumn: 80,
     wrappingIndent: 'indent',

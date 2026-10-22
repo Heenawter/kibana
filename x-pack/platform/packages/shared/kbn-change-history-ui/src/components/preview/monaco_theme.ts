@@ -42,6 +42,9 @@ const buildEuiThemeData = (
   ...themeBase,
   colors: {
     ...themeBase.colors,
+    'scrollbarSlider.background': euiTheme.colors.mediumShade,
+    'scrollbarSlider.hoverBackground': euiTheme.colors.darkShade,
+    'scrollbarSlider.activeBackground': euiTheme.colors.darkShade,
     'list.hoverForeground': euiTheme.colors.textPrimary,
     'list.hoverBackground': euiTheme.colors.backgroundBaseInteractiveSelect,
     'editorSuggestWidget.foreground': euiTheme.colors.textParagraph,
