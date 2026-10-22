@@ -24,6 +24,7 @@ export type {
 } from './src/components/modal';
 export {
   ChangeHistoryPreview,
+  ChangeHistoryPreviewFooter,
   ChangeHistoryPreviewFooterSpacer,
   ChangeHistoryPreviewSettingsSection,
   createChangeHistoryEuiMonacoTheme,
@@ -34,7 +35,6 @@ export type {
   ChangeHistoryCompareBadgeColor,
   ChangeHistoryCompareIndicator,
   ChangeHistoryPreviewProps,
-  ChangeHistoryPreviewCustomMode,
   ChangeHistoryMonacoLanguage,
   ChangeHistoryMonacoTheme,
   ChangeHistoryMonacoThemeDefinition,

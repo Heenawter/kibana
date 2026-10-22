@@ -7,28 +7,16 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
-import { EuiIcon, EuiLoadingSpinner } from '@elastic/eui';
-
-import {
-  ChangeHistoryModal,
-  ChangeHistoryPreview,
-  ChangeHistoryProvider,
-} from '@kbn/change-history-ui';
+import { ChangeHistoryModal, ChangeHistoryProvider } from '@kbn/change-history-ui';
 import { i18n } from '@kbn/i18n';
 
 import { coreServices } from '../services/kibana_services';
 import { createDashboardChangeHistoryAdapter } from './dashboard_change_history_adapter';
 import { renderDashboardChangeHistoryBadge } from './dashboard_change_history_badge';
-import { getDashboardChangeHistoryCompareIndicator } from './get_dashboard_change_history_compare_indicator';
+import { DashboardChangeHistoryPreview } from './dashboard_change_history_preview';
 import { useDashboardApi } from '../dashboard_api/use_dashboard_api';
-
-// the preview embeds a second dashboard renderer, so only load it once a change is previewed
-const LazyDashboardPreview = lazy(async () => {
-  const { DashboardPreview } = await import('./dashboard_preview');
-  return { default: DashboardPreview };
-});
 
 export interface DashboardChangeHistoryProviderProps {
   children: React.ReactNode;
@@ -73,42 +61,13 @@ export const DashboardChangeHistoryProvider = ({
     <ChangeHistoryProvider
       objectId={dashboardId}
       adapter={adapter}
-      renderPreview={(props) => {
-        console.log({ props });
-        return (
-          <ChangeHistoryPreview
-            baseline={props.compareSpec?.baseline.snapshot as object}
-            target={props.compareSpec?.target.snapshot as object}
-            compareIndicator={
-              props.compareSpec
-                ? getDashboardChangeHistoryCompareIndicator(props.compareSpec)
-                : undefined
-            }
-            diffTelemetry={props.diffTelemetry}
-            renderFooter={(context) => <>here</>}
-            language={'json'}
-            defaultModeId="preview"
-            customModes={[
-              {
-                id: 'preview',
-                label: i18n.translate('dashboard.changeHistory.previewMode', {
-                  defaultMessage: 'Preview',
-                }),
-                icon: <EuiIcon type="productDashboard" size="xxl" aria-hidden={true} />,
-                render: () => (
-                  <Suspense fallback={<EuiLoadingSpinner size="xl" />}>
-                    <LazyDashboardPreview
-                      {...props}
-                      setPreviewTitle={setPreviewTitle}
-                      inheritedTimeRange={dashboardApi?.timeRange$.getValue()}
-                    />
-                  </Suspense>
-                ),
-              },
-            ]}
-          />
-        );
-      }}
+      renderPreview={(props) => (
+        <DashboardChangeHistoryPreview
+          previewProps={props}
+          setPreviewTitle={setPreviewTitle}
+          inheritedTimeRange={dashboardApi?.timeRange$.getValue()}
+        />
+      )}
       renderBadge={renderDashboardChangeHistoryBadge}
       labels={{
         previewBackLabel: i18n.translate('dashboard.changeHistory.backToDashboard', {

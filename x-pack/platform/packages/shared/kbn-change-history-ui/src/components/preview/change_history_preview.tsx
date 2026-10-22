@@ -15,7 +15,6 @@ import type { monaco } from '@kbn/code-editor';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import type { ChangeHistoryCompareMode } from '../../telemetry';
 import type { ChangeHistoryDiffTelemetry } from '../../types';
-import type { ChangeHistoryPreviewModeOption } from './change_history_compare_mode_setting';
 import { useChangeHistoryDiffModeOptions } from './change_history_compare_mode_setting';
 import type { ChangeHistoryCompareIndicator } from './change_history_compare_indicator';
 import {
@@ -30,6 +29,7 @@ import type { ChangeHistoryDiffNavigation } from './change_history_monaco_diff';
 import { ChangeHistoryMonacoDiff } from './change_history_monaco_diff';
 import {
   CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
+  ChangeHistoryPreviewFooter,
   ChangeHistoryPreviewFooterSpacer,
 } from './change_history_preview_footer';
 import { ChangeHistoryPreviewSettingsPopover } from './change_history_preview_settings_popover';
@@ -58,13 +58,6 @@ export interface ChangeHistoryPreviewEditorContext {
   ) => void;
 }
 
-/** A user-provided mode rendered in place of the Monaco editors. */
-export interface ChangeHistoryPreviewCustomMode
-  extends Pick<ChangeHistoryPreviewModeOption, 'id' | 'label' | 'icon' | 'data-test-subj'> {
-  /** Must not be `unified` or `split`, which are reserved for the built-in diff modes. */
-  render: () => ReactNode;
-}
-
 export interface ChangeHistoryPreviewProps {
   /** Older content (Monaco "original"). Strings are used as-is; other values are serialized as pretty JSON. */
   baseline?: string | object;
@@ -86,17 +79,9 @@ export interface ChangeHistoryPreviewProps {
    */
   editorOptions?: monaco.editor.IEditorOptions;
   /**
-   * Extra modes offered in the settings popover after the built-in unified / split diff modes.
-   * Without a `baseline` the diff modes are not offered when custom modes exist (there is nothing
-   * to compare), so a custom mode can be the only one.
-   */
-  customModes?: readonly ChangeHistoryPreviewCustomMode[];
-  /** Id of the mode selected initially. Defaults to the first mode offered. */
-  defaultModeId?: string;
-  /**
    * Footer content. Always mounted, so it can run effects against the editors. Render
    * `ChangeHistoryPreviewFooterSpacer` when there is nothing to show. Defaults to the spacer.
-   * The context is `null` until a Monaco editor has mounted (e.g. when starting in a custom mode).
+   * The context is `null` until a Monaco editor has mounted.
    */
   renderFooter?: (context: ChangeHistoryPreviewEditorContext | null) => ReactNode;
   /**
@@ -111,26 +96,10 @@ export interface ChangeHistoryPreviewProps {
   'data-test-subj'?: string;
 }
 
-const EMPTY_CUSTOM_MODES: readonly ChangeHistoryPreviewCustomMode[] = [];
-
 const toText = (value: string | object): string =>
   typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 
 const monacoDiffPreviewStyles = {
-  footer: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      width: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      height: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
-      borderTop: euiTheme.border.thin,
-      padding: `0 ${euiTheme.size.m}`,
-    }),
-  previewContent: css({
-    minHeight: 0,
-    overflow: 'auto',
-  }),
   floatingToolbar: ({ euiTheme }: UseEuiTheme) =>
     css({
       position: 'relative',
@@ -156,8 +125,6 @@ export const ChangeHistoryPreview = ({
   monacoTheme: monacoThemeProp,
   editorOptions,
   renderFooter,
-  customModes = EMPTY_CUSTOM_MODES,
-  defaultModeId,
   extraSettings,
   containerStyles,
   'data-test-subj': dataTestSubj = 'changeHistoryMonacoPreview',
@@ -174,37 +141,19 @@ export const ChangeHistoryPreview = ({
   );
   const [diffNavigation, setDiffNavigation] = useState<ChangeHistoryDiffNavigation | null>(null);
   const diffModeOptions = useChangeHistoryDiffModeOptions();
-  const modes = useMemo<ChangeHistoryPreviewModeOption[]>(() => {
-    const hasBaseline = baselineComparison !== undefined;
-    // A lone read-only editor is only offered when no custom mode can stand in for it.
-    const diffModes = hasBaseline
-      ? diffModeOptions
-      : customModes.length === 0
-      ? diffModeOptions.slice(0, 1)
-      : [];
-    return [...diffModes, ...customModes];
-  }, [baselineComparison, customModes, diffModeOptions]);
+  // Without a baseline there is nothing to compare, so only the lone read-only editor is shown.
+  const modes = baselineComparison === undefined ? diffModeOptions.slice(0, 1) : diffModeOptions;
+  const [compareMode, setCompareMode] = useState<ChangeHistoryCompareMode>('unified');
 
-  const [selectedModeId, setSelectedModeId] = useState<string | undefined>(defaultModeId);
-  const viewModeId = modes.some(({ id }) => id === selectedModeId) ? selectedModeId : modes[0]?.id;
-  const customMode = customModes.find(({ id }) => id === viewModeId);
-
-  const compareMode: ChangeHistoryCompareMode = viewModeId === 'split' ? 'split' : 'unified';
-  const isCompareMode = baselineComparison !== undefined && !customMode;
-  // The editors are unmounted in a custom mode (their refs are cleared), but the footer stays
-  // mounted so its effects and state survive mode switches.
-  const footerContext = useMemo(
-    () =>
-      editorContext && customMode ? { ...editorContext, isEditorMounted: false } : editorContext,
-    [editorContext, customMode]
-  );
+  const isCompareMode = baselineComparison !== undefined;
 
   const handleModeChange = useCallback(
     (modeId: string) => {
-      setSelectedModeId(modeId);
-      if (modeId === 'unified' || modeId === 'split') {
-        diffTelemetry?.setCompareMode(modeId);
+      if (modeId !== 'unified' && modeId !== 'split') {
+        return;
       }
+      setCompareMode(modeId);
+      diffTelemetry?.setCompareMode(modeId);
     },
     [diffTelemetry]
   );
@@ -245,35 +194,31 @@ export const ChangeHistoryPreview = ({
           <div />
         )}
 
-        {customMode ? (
-          <div css={styles.previewContent}>{customMode.render()}</div>
-        ) : (
-          <ChangeHistoryMonacoDiff
-            baseline={baselineComparison}
-            target={targetComparison}
-            language={language}
-            monacoTheme={monacoThemeProp}
-            editorOptions={editorOptions}
-            data-test-subj={dataTestSubj}
-            compareMode={compareMode}
-            diffTelemetry={diffTelemetry}
-            onEditorContextChange={setEditorContext}
-            onDiffNavigationChange={setDiffNavigation}
-          />
-        )}
+        <ChangeHistoryMonacoDiff
+          baseline={baselineComparison}
+          target={targetComparison}
+          language={language}
+          monacoTheme={monacoThemeProp}
+          editorOptions={editorOptions}
+          data-test-subj={dataTestSubj}
+          compareMode={compareMode}
+          diffTelemetry={diffTelemetry}
+          onEditorContextChange={setEditorContext}
+          onDiffNavigationChange={setDiffNavigation}
+        />
 
-        <div css={styles.footer} data-test-subj={`${dataTestSubj}Footer`}>
-          {renderFooter ? renderFooter(footerContext) : <ChangeHistoryPreviewFooterSpacer />}
+        <ChangeHistoryPreviewFooter data-test-subj={`${dataTestSubj}Footer`}>
+          {renderFooter ? renderFooter(editorContext) : <ChangeHistoryPreviewFooterSpacer />}
           {hasSettings ? (
             <ChangeHistoryPreviewSettingsPopover
               modes={modes}
-              selectedModeId={viewModeId ?? ''}
+              selectedModeId={compareMode}
               onModeChange={handleModeChange}
             >
               {extraSettings}
             </ChangeHistoryPreviewSettingsPopover>
           ) : null}
-        </div>
+        </ChangeHistoryPreviewFooter>
       </div>
       {isCompareMode && diffNavigation && (
         <div css={styles.floatingToolbar}>

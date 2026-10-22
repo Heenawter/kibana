@@ -8,12 +8,12 @@
 export { ChangeHistoryPreview } from './change_history_preview';
 export {
   CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
+  ChangeHistoryPreviewFooter,
   ChangeHistoryPreviewFooterSpacer,
 } from './change_history_preview_footer';
 export { ChangeHistoryPreviewSettingsSection } from './change_history_preview_settings_popover';
 export type {
   ChangeHistoryPreviewProps,
-  ChangeHistoryPreviewCustomMode,
   ChangeHistoryMonacoLanguage,
   ChangeHistoryPreviewEditorContext,
 } from './change_history_preview';
