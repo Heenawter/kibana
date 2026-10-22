@@ -76,17 +76,19 @@ export const DashboardChangeHistoryProvider = ({
       renderPreview={(props) => {
         console.log({ props });
         return (
-          <>
-            {props.compareSpec && props.compareSpec.comparisonType === 'vs_row' ? (
-              <ChangeHistoryPreview
-                baseline={props.compareSpec.baseline.snapshot as object}
-                target={props.compareSpec.target.snapshot as object}
-                compareIndicator={getDashboardChangeHistoryCompareIndicator(props.compareSpec)}
-                diffTelemetry={props.diffTelemetry}
-                renderFooter={(context) => <>here</>}
-                language={'json'}
-              />
-            ) : (
+          <ChangeHistoryPreview
+            baseline={props.compareSpec?.baseline.snapshot as object}
+            target={props.compareSpec?.target.snapshot as object}
+            compareIndicator={
+              props.compareSpec
+                ? getDashboardChangeHistoryCompareIndicator(props.compareSpec)
+                : undefined
+            }
+            diffTelemetry={props.diffTelemetry}
+            renderFooter={(context) => <>here</>}
+            language={'json'}
+            supportedModes={props.compareSpec ? ['unified', 'split', 'preview'] : ['preview']}
+            renderPreview={() => (
               <Suspense fallback={<EuiLoadingSpinner size="xl" />}>
                 <LazyDashboardPreview
                   {...props}
@@ -95,7 +97,7 @@ export const DashboardChangeHistoryProvider = ({
                 />
               </Suspense>
             )}
-          </>
+          />
         );
       }}
       renderBadge={renderDashboardChangeHistoryBadge}

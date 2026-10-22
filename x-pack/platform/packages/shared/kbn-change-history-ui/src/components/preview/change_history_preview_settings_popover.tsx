@@ -19,7 +19,7 @@ import type { ReactNode } from 'react';
 import React, { useEffect, useState } from 'react';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import { i18n } from '@kbn/i18n';
-import type { ChangeHistoryCompareMode } from '../../telemetry';
+import type { ChangeHistoryPreviewViewMode } from './change_history_compare_mode_setting';
 import { ChangeHistoryCompareModeSetting } from './change_history_compare_mode_setting';
 import { changeHistoryPreviewTypography } from './change_history_preview_typography';
 
@@ -48,10 +48,10 @@ const settingsPopoverStyles = {
 };
 
 export interface ChangeHistoryPreviewSettingsPopoverProps {
-  /** Whether a diff is shown. The compare mode setting is only rendered in diff mode. */
-  hasCompare: boolean;
-  compareMode: ChangeHistoryCompareMode;
-  onCompareModeChange: (compareMode: ChangeHistoryCompareMode) => void;
+  /** Modes the user can pick from. The mode setting is only rendered when more than one is supported. */
+  supportedModes: readonly ChangeHistoryPreviewViewMode[];
+  compareMode: ChangeHistoryPreviewViewMode;
+  onCompareModeChange: (compareMode: ChangeHistoryPreviewViewMode) => void;
   /** Additional settings rendered below the compare mode setting; compose `ChangeHistoryPreviewSettingsSection`s. */
   children?: ReactNode;
 }
@@ -61,7 +61,7 @@ export interface ChangeHistoryPreviewSettingsPopoverProps {
  * (diff mode); sections are separated by a divider.
  */
 export const ChangeHistoryPreviewSettingsPopover = ({
-  hasCompare,
+  supportedModes,
   compareMode,
   onCompareModeChange,
   children,
@@ -128,9 +128,10 @@ export const ChangeHistoryPreviewSettingsPopover = ({
         <EuiHorizontalRule margin="none" />
 
         <div css={styles.sections}>
-          {hasCompare ? (
+          {supportedModes.length > 1 ? (
             <ChangeHistoryCompareModeSetting
               compareMode={compareMode}
+              supportedModes={supportedModes}
               onCompareModeChange={onCompareModeChange}
             />
           ) : null}

@@ -16,7 +16,7 @@ import { ChangeHistoryPreviewSettingsSection } from './change_history_preview_se
 
 const mockFooterContext = jest.fn();
 
-const renderFooter = (context: ChangeHistoryPreviewEditorContext) => {
+const renderFooter = (context: ChangeHistoryPreviewEditorContext | null) => {
   mockFooterContext(context);
   return <div data-test-subj="footerSlot">Custom footer</div>;
 };

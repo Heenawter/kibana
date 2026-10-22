@@ -6,15 +6,38 @@
  */
 
 import type { UseEuiTheme } from '@elastic/eui';
-import { EuiText, useEuiTheme, useGeneratedHtmlId, transparentize } from '@elastic/eui';
+import { EuiText, useEuiTheme, useGeneratedHtmlId, transparentize, EuiIcon } from '@elastic/eui';
 import { ClassNames, css } from '@emotion/react';
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import { i18n } from '@kbn/i18n';
 import type { ChangeHistoryCompareMode } from '../../telemetry';
 import { changeHistoryPreviewTypography } from './change_history_preview_typography';
 
-const COMPARE_MODES: ChangeHistoryCompareMode[] = ['unified', 'split'];
+export type ChangeHistoryPreviewViewMode = ChangeHistoryCompareMode | 'preview';
+
+const VIEW_MODES: readonly ChangeHistoryPreviewViewMode[] = ['unified', 'split', 'preview'];
+
+const VIEW_MODE_META: Record<ChangeHistoryPreviewViewMode, { label: string; testSubj: string }> = {
+  unified: {
+    label: i18n.translate('xpack.changeHistoryUi.preview.settings.unified', {
+      defaultMessage: 'Unified',
+    }),
+    testSubj: 'changeHistoryCompareUnified',
+  },
+  split: {
+    label: i18n.translate('xpack.changeHistoryUi.preview.settings.split', {
+      defaultMessage: 'Split',
+    }),
+    testSubj: 'changeHistoryCompareSplit',
+  },
+  preview: {
+    label: i18n.translate('xpack.changeHistoryUi.preview.settings.preview', {
+      defaultMessage: 'Preview',
+    }),
+    testSubj: 'changeHistoryComparePreview',
+  },
+};
 
 const COMPARE_TILE_WIDTH = 110;
 const COMPARE_TILE_HEIGHT = 100;
@@ -32,7 +55,7 @@ const ILLUSTRATION_BAR_TOP = (COMPARE_TILE_ILLUSTRATION_HEIGHT - ILLUSTRATION_BA
 const ILLUSTRATION_BAR_ROW_OFFSETS = [0, 14, 28] as const;
 
 interface CompareModeIllustrationProps {
-  mode: ChangeHistoryCompareMode;
+  mode: ChangeHistoryPreviewViewMode;
   borderColor: string;
   addedColor: string;
   removedColor: string;
@@ -46,6 +69,10 @@ const CompareModeIllustration = ({
 }: CompareModeIllustrationProps): JSX.Element => {
   const barY = (rowIndex: number): number =>
     ILLUSTRATION_BAR_TOP + ILLUSTRATION_BAR_ROW_OFFSETS[rowIndex];
+
+  if (mode === 'preview') {
+    return <EuiIcon type="productDashboard" size="xxl" />;
+  }
 
   if (mode === 'unified') {
     return (
@@ -175,7 +202,8 @@ const compareModeSettingStyles = {
   `,
   compareTileGroup: css({
     display: 'grid',
-    gridTemplateColumns: `repeat(2, ${COMPARE_TILE_WIDTH}px)`,
+    gridAutoFlow: 'column',
+    gridAutoColumns: `${COMPARE_TILE_WIDTH}px`,
     gap: `${TILE_GAP}px`,
     width: 'fit-content',
   }),
@@ -280,29 +308,37 @@ const compareModeSettingStyles = {
 };
 
 export interface ChangeHistoryCompareModeSettingProps {
-  compareMode: ChangeHistoryCompareMode;
-  onCompareModeChange: (compareMode: ChangeHistoryCompareMode) => void;
+  compareMode: ChangeHistoryPreviewViewMode;
+  /** Modes to offer, in display order. */
+  supportedModes: readonly ChangeHistoryPreviewViewMode[];
+  onCompareModeChange: (compareMode: ChangeHistoryPreviewViewMode) => void;
 }
 
-/** Unified / split diff layout picker. Render it inside a settings popover section. */
+/** Unified / split / preview picker. Render it inside a settings popover section. */
 export const ChangeHistoryCompareModeSetting = ({
   compareMode,
+  supportedModes,
   onCompareModeChange,
 }: ChangeHistoryCompareModeSettingProps): JSX.Element => {
   const { euiTheme } = useEuiTheme();
   const styles = useMemoCss(compareModeSettingStyles);
-  const unifiedTileRef = useRef<HTMLButtonElement>(null);
-  const splitTileRef = useRef<HTMLButtonElement>(null);
+  const tileRefs = useRef<Partial<Record<ChangeHistoryPreviewViewMode, HTMLButtonElement | null>>>(
+    {}
+  );
+  const modes = useMemo(
+    () => VIEW_MODES.filter((mode) => supportedModes.includes(mode)),
+    [supportedModes]
+  );
   const compareModeGroupLabelId = useGeneratedHtmlId({
     prefix: 'changeHistoryCompareModeGroup',
   });
 
-  const focusCompareTile = useCallback((mode: ChangeHistoryCompareMode): void => {
-    (mode === 'unified' ? unifiedTileRef : splitTileRef).current?.focus();
+  const focusCompareTile = useCallback((mode: ChangeHistoryPreviewViewMode): void => {
+    tileRefs.current[mode]?.focus();
   }, []);
 
   const selectCompareMode = useCallback(
-    (mode: ChangeHistoryCompareMode, shouldFocus = false): void => {
+    (mode: ChangeHistoryPreviewViewMode, shouldFocus = false): void => {
       onCompareModeChange(mode);
       // Intentionally keep the popover open so users can switch unified/split without reopening.
       if (shouldFocus) {
@@ -313,30 +349,27 @@ export const ChangeHistoryCompareModeSetting = ({
   );
 
   const handleCompareTileKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLButtonElement>, mode: ChangeHistoryCompareMode): void => {
-      const currentIndex = COMPARE_MODES.indexOf(compareMode);
+    (event: React.KeyboardEvent<HTMLButtonElement>, mode: ChangeHistoryPreviewViewMode): void => {
+      const currentIndex = modes.indexOf(compareMode);
 
       switch (event.key) {
         case 'ArrowLeft':
         case 'ArrowUp':
           event.preventDefault();
-          selectCompareMode(COMPARE_MODES[Math.max(0, currentIndex - 1)], true);
+          selectCompareMode(modes[Math.max(0, currentIndex - 1)], true);
           return;
         case 'ArrowRight':
         case 'ArrowDown':
           event.preventDefault();
-          selectCompareMode(
-            COMPARE_MODES[Math.min(COMPARE_MODES.length - 1, currentIndex + 1)],
-            true
-          );
+          selectCompareMode(modes[Math.min(modes.length - 1, currentIndex + 1)], true);
           return;
         case 'Home':
           event.preventDefault();
-          selectCompareMode('unified', true);
+          selectCompareMode(modes[0], true);
           return;
         case 'End':
           event.preventDefault();
-          selectCompareMode('split', true);
+          selectCompareMode(modes[modes.length - 1], true);
           return;
         case ' ':
         case 'Enter':
@@ -344,22 +377,21 @@ export const ChangeHistoryCompareModeSetting = ({
           selectCompareMode(mode, true);
       }
     },
-    [compareMode, selectCompareMode]
+    [compareMode, modes, selectCompareMode]
   );
 
-  const renderCompareTile = (
-    mode: ChangeHistoryCompareMode,
-    label: string,
-    testSubj: string,
-    tileRef: React.RefObject<HTMLButtonElement>
-  ): JSX.Element => {
+  const renderCompareTile = (mode: ChangeHistoryPreviewViewMode): JSX.Element => {
     const isSelected = compareMode === mode;
+    const { label, testSubj } = VIEW_MODE_META[mode];
 
     return (
       <ClassNames>
         {({ css: cssClassName }) => (
           <button
-            ref={tileRef}
+            key={mode}
+            ref={(element) => {
+              tileRefs.current[mode] = element;
+            }}
             type="button"
             role="radio"
             aria-checked={isSelected}
@@ -417,22 +449,7 @@ export const ChangeHistoryCompareModeSetting = ({
         role="radiogroup"
         aria-labelledby={compareModeGroupLabelId}
       >
-        {renderCompareTile(
-          'unified',
-          i18n.translate('xpack.changeHistoryUi.preview.settings.unified', {
-            defaultMessage: 'Unified',
-          }),
-          'changeHistoryCompareUnified',
-          unifiedTileRef
-        )}
-        {renderCompareTile(
-          'split',
-          i18n.translate('xpack.changeHistoryUi.preview.settings.split', {
-            defaultMessage: 'Split',
-          }),
-          'changeHistoryCompareSplit',
-          splitTileRef
-        )}
+        {modes.map(renderCompareTile)}
       </EuiText>
     </EuiText>
   );

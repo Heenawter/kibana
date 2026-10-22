@@ -15,6 +15,7 @@ import type { monaco } from '@kbn/code-editor';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import type { ChangeHistoryCompareMode } from '../../telemetry';
 import type { ChangeHistoryDiffTelemetry } from '../../types';
+import type { ChangeHistoryPreviewViewMode } from './change_history_compare_mode_setting';
 import type { ChangeHistoryCompareIndicator } from './change_history_compare_indicator';
 import {
   ChangeHistoryCompareIndicatorBar,
@@ -77,13 +78,25 @@ export interface ChangeHistoryPreviewProps {
    */
   editorOptions?: monaco.editor.IEditorOptions;
   /**
+   * Rendered instead of the Monaco editors while the "preview" mode is selected. The context is
+   * `null` because no editor is mounted in that mode.
+   */
+  renderPreview?: (context: ChangeHistoryPreviewEditorContext | null) => ReactNode;
+  /**
+   * Modes offered in the settings popover; the first one is selected initially. "preview" requires
+   * `renderPreview`. Defaults to `['unified', 'split']` with a `baseline`, otherwise `['unified']`.
+   */
+  supportedModes?: readonly ChangeHistoryPreviewViewMode[];
+  /**
    * Footer content. Always mounted, so it can run effects against the editors. Render
    * `ChangeHistoryPreviewFooterSpacer` when there is nothing to show. Defaults to the spacer.
+   * The context is `null` until a Monaco editor has mounted (e.g. when starting in preview mode).
    */
-  renderFooter?: (context: ChangeHistoryPreviewEditorContext) => ReactNode;
+  renderFooter?: (context: ChangeHistoryPreviewEditorContext | null) => ReactNode;
   /**
-   * Additional settings rendered in the settings popover below the compare mode setting.
-   * Compose `ChangeHistoryPreviewSettingsSection`s. Without it, the popover only appears in diff mode.
+   * Additional settings rendered in the settings popover below the mode setting.
+   * Compose `ChangeHistoryPreviewSettingsSection`s. Without it, the popover only appears when
+   * more than one mode is supported.
    */
   extraSettings?: ReactNode;
   /** Extra Emotion styles for the preview root, e.g. to style validation decoration classes. */
@@ -91,6 +104,9 @@ export interface ChangeHistoryPreviewProps {
 
   'data-test-subj'?: string;
 }
+
+const COMPARE_MODES: readonly ChangeHistoryPreviewViewMode[] = ['unified', 'split'];
+const SINGLE_MODES: readonly ChangeHistoryPreviewViewMode[] = ['unified'];
 
 const toText = (value: string | object): string =>
   typeof value === 'string' ? value : JSON.stringify(value, null, 2);
@@ -104,7 +120,12 @@ const monacoDiffPreviewStyles = {
       justifyContent: 'space-between',
       height: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
       borderTop: euiTheme.border.thin,
+      padding: `0 ${euiTheme.size.m}`,
     }),
+  previewContent: css({
+    minHeight: 0,
+    overflow: 'auto',
+  }),
   floatingToolbar: ({ euiTheme }: UseEuiTheme) =>
     css({
       position: 'relative',
@@ -130,6 +151,8 @@ export const ChangeHistoryPreview = ({
   monacoTheme: monacoThemeProp,
   editorOptions,
   renderFooter,
+  renderPreview,
+  supportedModes: supportedModesProp,
   extraSettings,
   containerStyles,
   'data-test-subj': dataTestSubj = 'changeHistoryMonacoPreview',
@@ -145,14 +168,27 @@ export const ChangeHistoryPreview = ({
     null
   );
   const [diffNavigation, setDiffNavigation] = useState<ChangeHistoryDiffNavigation | null>(null);
-  const [compareMode, setCompareMode] = useState<ChangeHistoryCompareMode>('unified');
+  const supportedModes =
+    supportedModesProp ?? (baselineComparison === undefined ? SINGLE_MODES : COMPARE_MODES);
+  const [viewMode, setViewMode] = useState<ChangeHistoryPreviewViewMode>(supportedModes[0]);
 
-  const isCompareMode = baselineComparison !== undefined;
+  const isPreviewMode = viewMode === 'preview';
+  const compareMode = isPreviewMode ? 'unified' : viewMode;
+  const isCompareMode = baselineComparison !== undefined && !isPreviewMode;
+  // The editors are unmounted in preview mode (their refs are cleared), but the footer stays
+  // mounted so its effects and state survive mode switches.
+  const footerContext = useMemo(
+    () =>
+      editorContext && isPreviewMode ? { ...editorContext, isEditorMounted: false } : editorContext,
+    [editorContext, isPreviewMode]
+  );
 
-  const handleCompareModeChange = useCallback(
-    (mode: ChangeHistoryCompareMode) => {
-      setCompareMode(mode);
-      diffTelemetry?.setCompareMode(mode);
+  const handleViewModeChange = useCallback(
+    (mode: ChangeHistoryPreviewViewMode) => {
+      setViewMode(mode);
+      if (mode !== 'preview') {
+        diffTelemetry?.setCompareMode(mode);
+      }
     },
     [diffTelemetry]
   );
@@ -167,7 +203,7 @@ export const ChangeHistoryPreview = ({
     }
   }, [baselineComparison, diffTelemetry, targetComparison]);
 
-  const hasSettings = isCompareMode || Boolean(extraSettings);
+  const hasSettings = supportedModes.length > 1 || Boolean(extraSettings);
 
   return (
     <>
@@ -188,32 +224,35 @@ export const ChangeHistoryPreview = ({
           ) : (
             <ChangeHistoryCompareIndicatorBar indicator={compareIndicator} />
           )
-        ) : null}
+        ) : (
+          // Keeps the header grid row occupied so the content and footer stay in their rows.
+          <div />
+        )}
 
-        <ChangeHistoryMonacoDiff
-          baseline={baselineComparison}
-          target={targetComparison}
-          language={language}
-          monacoTheme={monacoThemeProp}
-          editorOptions={editorOptions}
-          data-test-subj={dataTestSubj}
-          compareMode={compareMode}
-          diffTelemetry={diffTelemetry}
-          onEditorContextChange={setEditorContext}
-          onDiffNavigationChange={setDiffNavigation}
-        />
+        {isPreviewMode ? (
+          <div css={styles.previewContent}>{renderPreview?.(null)}</div>
+        ) : (
+          <ChangeHistoryMonacoDiff
+            baseline={baselineComparison}
+            target={targetComparison}
+            language={language}
+            monacoTheme={monacoThemeProp}
+            editorOptions={editorOptions}
+            data-test-subj={dataTestSubj}
+            compareMode={compareMode}
+            diffTelemetry={diffTelemetry}
+            onEditorContextChange={setEditorContext}
+            onDiffNavigationChange={setDiffNavigation}
+          />
+        )}
 
         <div css={styles.footer} data-test-subj={`${dataTestSubj}Footer`}>
-          {renderFooter && editorContext ? (
-            renderFooter(editorContext)
-          ) : (
-            <ChangeHistoryPreviewFooterSpacer />
-          )}
+          {renderFooter ? renderFooter(footerContext) : <ChangeHistoryPreviewFooterSpacer />}
           {hasSettings ? (
             <ChangeHistoryPreviewSettingsPopover
-              hasCompare={isCompareMode}
-              compareMode={compareMode}
-              onCompareModeChange={handleCompareModeChange}
+              supportedModes={supportedModes}
+              compareMode={viewMode}
+              onCompareModeChange={handleViewModeChange}
             >
               {extraSettings}
             </ChangeHistoryPreviewSettingsPopover>
