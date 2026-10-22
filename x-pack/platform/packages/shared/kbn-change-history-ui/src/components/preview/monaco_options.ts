@@ -87,7 +87,8 @@ export const CHANGE_HISTORY_UNIFIED_DIFF_MODIFIED_EDITOR_OPTIONS: monaco.editor.
 /** Side-by-side diff: show line numbers in each pane. */
 export const CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS: monaco.editor.IEditorOptions = {
   lineNumbers: 'on',
-  lineNumbersMinChars: 2,
+  // Numbers are right-aligned, so a larger minimum width adds space to their left.
+  lineNumbersMinChars: 4,
   // Wider than Monaco default (10) so +/- diff indicators are not flush with line numbers.
   lineDecorationsWidth: 24,
 };

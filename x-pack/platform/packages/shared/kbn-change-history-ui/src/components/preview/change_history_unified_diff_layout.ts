@@ -18,9 +18,9 @@ export const CHANGE_HISTORY_UNIFIED_DIFF_COLLAPSE_ORIGINAL_SELECTOR =
 export const CHANGE_HISTORY_UNIFIED_DIFF_STRETCH_MODIFIED_SELECTOR =
   '& .monaco-diff-editor:not(.side-by-side) .editor.modified';
 
-export const buildChangeHistoryUnifiedDiffLayoutStyles = ({
-  euiTheme,
-}: UseEuiTheme): Record<string, Record<string, string | number>> => ({
+export const buildChangeHistoryUnifiedDiffLayoutStyles = (
+  _theme: UseEuiTheme
+): Record<string, Record<string, string | number>> => ({
   [CHANGE_HISTORY_UNIFIED_DIFF_COLLAPSE_ORIGINAL_SELECTOR]: {
     width: '0 !important',
     minWidth: '0 !important',
@@ -33,11 +33,6 @@ export const buildChangeHistoryUnifiedDiffLayoutStyles = ({
     right: '0',
     width: 'auto !important',
   },
-  '& .monaco-diff-editor.side-by-side .editor.original, & .monaco-diff-editor.side-by-side .editor.modified':
-    {
-      boxSizing: 'border-box',
-      paddingLeft: euiTheme.size.m,
-    },
   '& .monaco-diff-editor.side-by-side .insert-sign, & .monaco-diff-editor.side-by-side .delete-sign':
     {
       justifyContent: 'center',

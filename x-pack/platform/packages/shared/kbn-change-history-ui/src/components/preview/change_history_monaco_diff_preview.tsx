@@ -227,6 +227,8 @@ const monacoDiffPreviewStyles = {
         margin-right: 2px;
       }
     `,
+  unifiedDiffLayout: (themeContext: UseEuiTheme) =>
+    css(buildChangeHistoryUnifiedDiffLayoutStyles(themeContext)),
   monacoHostSplit: css({
     padding: 0,
   }),
@@ -234,49 +236,23 @@ const monacoDiffPreviewStyles = {
     css({
       paddingLeft: `calc(${euiTheme.size.m} + ${euiTheme.size.s})`,
     }),
-  footer: css({
-    position: 'relative',
-    zIndex: 1,
-  }),
-  footerContent: ({ euiTheme }: UseEuiTheme) =>
+  footer: ({ euiTheme }: UseEuiTheme) =>
     css({
       width: '100%',
-      flexShrink: 0,
-      minHeight: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
-      overflow: 'hidden',
-      backgroundColor: euiTheme.colors.backgroundBaseSubdued,
-
-      '.euiAccordion': {
-        backgroundColor: euiTheme.colors.backgroundBaseSubdued,
-        borderTop: euiTheme.border.thin,
-      },
-    }),
-  footerSettingsAnchor: ({ euiTheme }: UseEuiTheme) =>
-    css({
-      position: 'absolute',
-      right: euiTheme.size.m,
-      top: 0,
-      height: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
       display: 'flex',
       alignItems: 'center',
-      zIndex: 2,
+      flexShrink: 0,
+      height: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
+      borderTop: euiTheme.border.thin,
     }),
   floatingToolbar: ({ euiTheme }: UseEuiTheme) =>
     css({
-      position: 'absolute',
+      position: 'relative',
       left: '50%',
-      // Overlap the editor/footer seam; must sit above the footer accordion.
       bottom: FLOATING_NAVIGATOR_BOTTOM,
       transform: 'translateX(-50%)',
       zIndex: euiTheme.levels.modal,
       flex: '0 0 auto',
-      width: 'auto',
-      height: 'auto',
-      pointerEvents: 'none',
-
-      '& > *': {
-        pointerEvents: 'auto',
-      },
     }),
 };
 
@@ -522,17 +498,10 @@ export const ChangeHistoryMonacoDiffPreview = ({
 
   console.log({ isCompareMode, compareMode, containerRef });
   return (
-    <div
-      css={[
-        containerStyles?.(euiThemeContext),
-        css`
-          height: 100%;
-          width: 100%;
-        `,
-      ]}
-    >
+    <>
       <div
         css={[
+          containerStyles?.(euiThemeContext),
           css`
             display: grid;
             grid-template-rows: auto 1fr auto; /* Header, Content (fills space), Footer */
@@ -552,26 +521,23 @@ export const ChangeHistoryMonacoDiffPreview = ({
           component="div"
           css={[
             styles.monacoHost,
+            styles.unifiedDiffLayout,
             isCompareMode && compareMode === 'split' ? styles.monacoHostSplit : undefined,
             isCompareMode && compareMode === 'unified' ? styles.monacoHostUnified : undefined,
           ]}
         >
           <div ref={containerRef} data-test-subj={`${dataTestSubj}Editor`} />
         </EuiText>
-        <div css={styles.footer}>
-          <div css={styles.footerContent} data-test-subj={`${dataTestSubj}Footer`}>
-            {renderFooter ? renderFooter(editorContext) : <ChangeHistoryPreviewFooterSpacer />}
-          </div>
+        <div css={styles.footer} data-test-subj={`${dataTestSubj}Footer`}>
+          {renderFooter ? renderFooter(editorContext) : <ChangeHistoryPreviewFooterSpacer />}
           {hasSettings ? (
-            <div css={styles.footerSettingsAnchor}>
-              <ChangeHistoryPreviewSettingsPopover
-                hasCompare={isCompareMode}
-                compareMode={compareMode}
-                onCompareModeChange={handleCompareModeChange}
-              >
-                {extraSettings}
-              </ChangeHistoryPreviewSettingsPopover>
-            </div>
+            <ChangeHistoryPreviewSettingsPopover
+              hasCompare={isCompareMode}
+              compareMode={compareMode}
+              onCompareModeChange={handleCompareModeChange}
+            >
+              {extraSettings}
+            </ChangeHistoryPreviewSettingsPopover>
           ) : null}
           {showDiffNavigator && (
             <div css={styles.floatingToolbar}>
@@ -585,60 +551,6 @@ export const ChangeHistoryMonacoDiffPreview = ({
           )}
         </div>
       </div>
-    </div>
-
-    // <EuiFlexGroup
-    //   direction="column"
-    //   gutterSize="none"
-    //   responsive={false}
-    //   css={[styles.container, { height }, containerStyles?.(euiThemeContext)]}
-    //   data-test-subj={dataTestSubj}
-    // >
-    //   <EuiFlexItem css={styles.editor} grow={true}>
-    // {isCompareMode && compareIndicator ? (
-    //   compareMode === 'split' ? (
-    //     <ChangeHistoryCompareSplitPaneLabels indicator={compareIndicator} />
-    //   ) : (
-    //     <ChangeHistoryCompareIndicatorBar indicator={compareIndicator} />
-    //   )
-    // ) : null}
-    // <EuiText
-    //   component="div"
-    //   css={[
-    //     styles.monacoHost,
-    //     isCompareMode && compareMode === 'split' ? styles.monacoHostSplit : undefined,
-    //     isCompareMode && compareMode === 'unified' ? styles.monacoHostUnified : undefined,
-    //   ]}
-    // >
-    //   <div ref={containerRef} data-test-subj={`${dataTestSubj}Editor`} />
-    // </EuiText>
-    //   </EuiFlexItem>
-    // <EuiFlexItem css={styles.footer} grow={false}>
-    //   <div css={styles.footerContent} data-test-subj={`${dataTestSubj}Footer`}>
-    //     {renderFooter ? renderFooter(editorContext) : <ChangeHistoryPreviewFooterSpacer />}
-    //   </div>
-    //   {hasSettings ? (
-    //     <div css={styles.footerSettingsAnchor}>
-    //       <ChangeHistoryPreviewSettingsPopover
-    //         hasCompare={isCompareMode}
-    //         compareMode={compareMode}
-    //         onCompareModeChange={handleCompareModeChange}
-    //       >
-    //         {extraSettings}
-    //       </ChangeHistoryPreviewSettingsPopover>
-    //     </div>
-    //   ) : null}
-    // </EuiFlexItem>
-    //   {showDiffNavigator ? (
-    //     <EuiFlexItem css={styles.floatingToolbar} grow={false}>
-    // <ChangeHistoryDiffNavigator
-    //   currentIndex={diffCurrentIndex}
-    //   totalChanges={diffTotalChanges}
-    //   onPrevious={handleDiffPrevious}
-    //   onNext={handleDiffNext}
-    // />
-    //     </EuiFlexItem>
-    //   ) : null}
-    // </EuiFlexGroup>
+    </>
   );
 };
