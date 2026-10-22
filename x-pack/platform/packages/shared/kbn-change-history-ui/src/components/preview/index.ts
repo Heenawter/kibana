@@ -13,6 +13,7 @@ export {
 export { ChangeHistoryPreviewSettingsSection } from './change_history_preview_settings_popover';
 export type {
   ChangeHistoryPreviewProps,
+  ChangeHistoryPreviewCustomMode,
   ChangeHistoryMonacoLanguage,
   ChangeHistoryPreviewEditorContext,
 } from './change_history_preview';

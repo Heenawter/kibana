@@ -34,6 +34,7 @@ export type {
   ChangeHistoryCompareBadgeColor,
   ChangeHistoryCompareIndicator,
   ChangeHistoryPreviewProps,
+  ChangeHistoryPreviewCustomMode,
   ChangeHistoryMonacoLanguage,
   ChangeHistoryMonacoTheme,
   ChangeHistoryMonacoThemeDefinition,

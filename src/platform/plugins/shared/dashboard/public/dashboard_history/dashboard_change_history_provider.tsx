@@ -9,7 +9,7 @@
 
 import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 
-import { EuiLoadingSpinner } from '@elastic/eui';
+import { EuiIcon, EuiLoadingSpinner } from '@elastic/eui';
 
 import {
   ChangeHistoryModal,
@@ -87,16 +87,25 @@ export const DashboardChangeHistoryProvider = ({
             diffTelemetry={props.diffTelemetry}
             renderFooter={(context) => <>here</>}
             language={'json'}
-            supportedModes={props.compareSpec ? ['unified', 'split', 'preview'] : ['preview']}
-            renderPreview={() => (
-              <Suspense fallback={<EuiLoadingSpinner size="xl" />}>
-                <LazyDashboardPreview
-                  {...props}
-                  setPreviewTitle={setPreviewTitle}
-                  inheritedTimeRange={dashboardApi?.timeRange$.getValue()}
-                />
-              </Suspense>
-            )}
+            defaultModeId="preview"
+            customModes={[
+              {
+                id: 'preview',
+                label: i18n.translate('dashboard.changeHistory.previewMode', {
+                  defaultMessage: 'Preview',
+                }),
+                icon: <EuiIcon type="productDashboard" size="xxl" aria-hidden={true} />,
+                render: () => (
+                  <Suspense fallback={<EuiLoadingSpinner size="xl" />}>
+                    <LazyDashboardPreview
+                      {...props}
+                      setPreviewTitle={setPreviewTitle}
+                      inheritedTimeRange={dashboardApi?.timeRange$.getValue()}
+                    />
+                  </Suspense>
+                ),
+              },
+            ]}
           />
         );
       }}

@@ -6,37 +6,29 @@
  */
 
 import type { UseEuiTheme } from '@elastic/eui';
-import { EuiText, useEuiTheme, useGeneratedHtmlId, transparentize, EuiIcon } from '@elastic/eui';
+import { EuiText, useEuiTheme, useGeneratedHtmlId, transparentize } from '@elastic/eui';
 import { ClassNames, css } from '@emotion/react';
+import type { ReactNode } from 'react';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import { i18n } from '@kbn/i18n';
 import type { ChangeHistoryCompareMode } from '../../telemetry';
 import { changeHistoryPreviewTypography } from './change_history_preview_typography';
 
-export type ChangeHistoryPreviewViewMode = ChangeHistoryCompareMode | 'preview';
+export type ChangeHistoryDiffViewMode = ChangeHistoryCompareMode;
 
-const VIEW_MODES: readonly ChangeHistoryPreviewViewMode[] = ['unified', 'split', 'preview'];
+/** A selectable entry in the mode setting. */
+export interface ChangeHistoryPreviewModeOption {
+  id: string;
+  label: string;
+  /** Illustration rendered in the tile; sized for roughly 80x58px. Decorative (hidden from assistive tech). */
+  icon: ReactNode;
+  'data-test-subj'?: string;
+}
 
-const VIEW_MODE_META: Record<ChangeHistoryPreviewViewMode, { label: string; testSubj: string }> = {
-  unified: {
-    label: i18n.translate('xpack.changeHistoryUi.preview.settings.unified', {
-      defaultMessage: 'Unified',
-    }),
-    testSubj: 'changeHistoryCompareUnified',
-  },
-  split: {
-    label: i18n.translate('xpack.changeHistoryUi.preview.settings.split', {
-      defaultMessage: 'Split',
-    }),
-    testSubj: 'changeHistoryCompareSplit',
-  },
-  preview: {
-    label: i18n.translate('xpack.changeHistoryUi.preview.settings.preview', {
-      defaultMessage: 'Preview',
-    }),
-    testSubj: 'changeHistoryComparePreview',
-  },
+const DIFF_MODE_TEST_SUBJ: Record<ChangeHistoryDiffViewMode, string> = {
+  unified: 'changeHistoryCompareUnified',
+  split: 'changeHistoryCompareSplit',
 };
 
 const COMPARE_TILE_WIDTH = 110;
@@ -55,7 +47,7 @@ const ILLUSTRATION_BAR_TOP = (COMPARE_TILE_ILLUSTRATION_HEIGHT - ILLUSTRATION_BA
 const ILLUSTRATION_BAR_ROW_OFFSETS = [0, 14, 28] as const;
 
 interface CompareModeIllustrationProps {
-  mode: ChangeHistoryPreviewViewMode;
+  mode: ChangeHistoryDiffViewMode;
   borderColor: string;
   addedColor: string;
   removedColor: string;
@@ -69,10 +61,6 @@ const CompareModeIllustration = ({
 }: CompareModeIllustrationProps): JSX.Element => {
   const barY = (rowIndex: number): number =>
     ILLUSTRATION_BAR_TOP + ILLUSTRATION_BAR_ROW_OFFSETS[rowIndex];
-
-  if (mode === 'preview') {
-    return <EuiIcon type="productDashboard" size="xxl" />;
-  }
 
   if (mode === 'unified') {
     return (
@@ -176,6 +164,38 @@ const CompareModeIllustration = ({
         fill={removedColor}
       />
     </svg>
+  );
+};
+
+/** Built-in unified / split options, in display order. */
+export const useChangeHistoryDiffModeOptions = (): ChangeHistoryPreviewModeOption[] => {
+  const { euiTheme } = useEuiTheme();
+  const { borderBasePlain } = euiTheme.colors;
+  const { success, danger } = euiTheme.colors;
+
+  return useMemo(
+    () =>
+      (['unified', 'split'] as const).map((mode) => ({
+        id: mode,
+        label:
+          mode === 'unified'
+            ? i18n.translate('xpack.changeHistoryUi.preview.settings.unified', {
+                defaultMessage: 'Unified',
+              })
+            : i18n.translate('xpack.changeHistoryUi.preview.settings.split', {
+                defaultMessage: 'Split',
+              }),
+        icon: (
+          <CompareModeIllustration
+            mode={mode}
+            borderColor={borderBasePlain}
+            addedColor={success}
+            removedColor={danger}
+          />
+        ),
+        'data-test-subj': DIFF_MODE_TEST_SUBJ[mode],
+      })),
+    [borderBasePlain, success, danger]
   );
 };
 
@@ -308,89 +328,86 @@ const compareModeSettingStyles = {
 };
 
 export interface ChangeHistoryCompareModeSettingProps {
-  compareMode: ChangeHistoryPreviewViewMode;
   /** Modes to offer, in display order. */
-  supportedModes: readonly ChangeHistoryPreviewViewMode[];
-  onCompareModeChange: (compareMode: ChangeHistoryPreviewViewMode) => void;
+  modes: readonly ChangeHistoryPreviewModeOption[];
+  selectedModeId: string;
+  onModeChange: (modeId: string) => void;
 }
 
-/** Unified / split / preview picker. Render it inside a settings popover section. */
+/** Mode picker (built-in unified / split plus any custom modes). Render it inside a settings popover section. */
 export const ChangeHistoryCompareModeSetting = ({
-  compareMode,
-  supportedModes,
-  onCompareModeChange,
+  modes,
+  selectedModeId,
+  onModeChange,
 }: ChangeHistoryCompareModeSettingProps): JSX.Element => {
-  const { euiTheme } = useEuiTheme();
   const styles = useMemoCss(compareModeSettingStyles);
-  const tileRefs = useRef<Partial<Record<ChangeHistoryPreviewViewMode, HTMLButtonElement | null>>>(
-    {}
-  );
-  const modes = useMemo(
-    () => VIEW_MODES.filter((mode) => supportedModes.includes(mode)),
-    [supportedModes]
-  );
+  const tileRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const compareModeGroupLabelId = useGeneratedHtmlId({
     prefix: 'changeHistoryCompareModeGroup',
   });
 
-  const focusCompareTile = useCallback((mode: ChangeHistoryPreviewViewMode): void => {
-    tileRefs.current[mode]?.focus();
+  const focusCompareTile = useCallback((modeId: string): void => {
+    tileRefs.current[modeId]?.focus();
   }, []);
 
   const selectCompareMode = useCallback(
-    (mode: ChangeHistoryPreviewViewMode, shouldFocus = false): void => {
-      onCompareModeChange(mode);
+    (modeId: string, shouldFocus = false): void => {
+      onModeChange(modeId);
       // Intentionally keep the popover open so users can switch unified/split without reopening.
       if (shouldFocus) {
-        focusCompareTile(mode);
+        focusCompareTile(modeId);
       }
     },
-    [focusCompareTile, onCompareModeChange]
+    [focusCompareTile, onModeChange]
   );
 
   const handleCompareTileKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLButtonElement>, mode: ChangeHistoryPreviewViewMode): void => {
-      const currentIndex = modes.indexOf(compareMode);
+    (event: React.KeyboardEvent<HTMLButtonElement>, modeId: string): void => {
+      const currentIndex = modes.findIndex(({ id }) => id === selectedModeId);
 
       switch (event.key) {
         case 'ArrowLeft':
         case 'ArrowUp':
           event.preventDefault();
-          selectCompareMode(modes[Math.max(0, currentIndex - 1)], true);
+          selectCompareMode(modes[Math.max(0, currentIndex - 1)].id, true);
           return;
         case 'ArrowRight':
         case 'ArrowDown':
           event.preventDefault();
-          selectCompareMode(modes[Math.min(modes.length - 1, currentIndex + 1)], true);
+          selectCompareMode(modes[Math.min(modes.length - 1, currentIndex + 1)].id, true);
           return;
         case 'Home':
           event.preventDefault();
-          selectCompareMode(modes[0], true);
+          selectCompareMode(modes[0].id, true);
           return;
         case 'End':
           event.preventDefault();
-          selectCompareMode(modes[modes.length - 1], true);
+          selectCompareMode(modes[modes.length - 1].id, true);
           return;
         case ' ':
         case 'Enter':
           event.preventDefault();
-          selectCompareMode(mode, true);
+          selectCompareMode(modeId, true);
       }
     },
-    [compareMode, modes, selectCompareMode]
+    [modes, selectedModeId, selectCompareMode]
   );
 
-  const renderCompareTile = (mode: ChangeHistoryPreviewViewMode): JSX.Element => {
-    const isSelected = compareMode === mode;
-    const { label, testSubj } = VIEW_MODE_META[mode];
+  const renderCompareTile = ({
+    id,
+    label,
+    icon,
+    'data-test-subj': testSubj,
+  }: ChangeHistoryPreviewModeOption): JSX.Element => {
+    const isSelected = selectedModeId === id;
 
     return (
       <ClassNames>
         {({ css: cssClassName }) => (
           <button
-            key={mode}
+            key={id}
             ref={(element) => {
-              tileRefs.current[mode] = element;
+              tileRefs.current[id] = element;
             }}
             type="button"
             role="radio"
@@ -399,9 +416,9 @@ export const ChangeHistoryCompareModeSetting = ({
             className={cssClassName(styles.compareTile, isSelected && styles.compareTileSelected)}
             data-test-subj={testSubj}
             aria-label={label}
-            onClick={() => selectCompareMode(mode)}
+            onClick={() => selectCompareMode(id)}
             onKeyDown={(event: React.KeyboardEvent<HTMLButtonElement>) =>
-              handleCompareTileKeyDown(event, mode)
+              handleCompareTileKeyDown(event, id)
             }
           >
             {isSelected ? (
@@ -412,12 +429,7 @@ export const ChangeHistoryCompareModeSetting = ({
               />
             ) : null}
             <EuiText component="span" css={styles.compareTileIllustration} aria-hidden={true}>
-              <CompareModeIllustration
-                mode={mode}
-                borderColor={euiTheme.colors.borderBasePlain}
-                addedColor={euiTheme.colors.success}
-                removedColor={euiTheme.colors.danger}
-              />
+              {icon}
             </EuiText>
             <EuiText component="span" css={styles.compareTileDivider} aria-hidden={true} />
             <EuiText component="span" css={styles.compareTileFooter}>

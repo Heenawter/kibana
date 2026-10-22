@@ -19,7 +19,7 @@ import type { ReactNode } from 'react';
 import React, { useEffect, useState } from 'react';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import { i18n } from '@kbn/i18n';
-import type { ChangeHistoryPreviewViewMode } from './change_history_compare_mode_setting';
+import type { ChangeHistoryPreviewModeOption } from './change_history_compare_mode_setting';
 import { ChangeHistoryCompareModeSetting } from './change_history_compare_mode_setting';
 import { changeHistoryPreviewTypography } from './change_history_preview_typography';
 
@@ -48,10 +48,10 @@ const settingsPopoverStyles = {
 };
 
 export interface ChangeHistoryPreviewSettingsPopoverProps {
-  /** Modes the user can pick from. The mode setting is only rendered when more than one is supported. */
-  supportedModes: readonly ChangeHistoryPreviewViewMode[];
-  compareMode: ChangeHistoryPreviewViewMode;
-  onCompareModeChange: (compareMode: ChangeHistoryPreviewViewMode) => void;
+  /** Modes the user can pick from. The mode setting is only rendered when there is more than one. */
+  modes: readonly ChangeHistoryPreviewModeOption[];
+  selectedModeId: string;
+  onModeChange: (modeId: string) => void;
   /** Additional settings rendered below the compare mode setting; compose `ChangeHistoryPreviewSettingsSection`s. */
   children?: ReactNode;
 }
@@ -61,9 +61,9 @@ export interface ChangeHistoryPreviewSettingsPopoverProps {
  * (diff mode); sections are separated by a divider.
  */
 export const ChangeHistoryPreviewSettingsPopover = ({
-  supportedModes,
-  compareMode,
-  onCompareModeChange,
+  modes,
+  selectedModeId,
+  onModeChange,
   children,
 }: ChangeHistoryPreviewSettingsPopoverProps): JSX.Element => {
   const styles = useMemoCss(settingsPopoverStyles);
@@ -128,11 +128,11 @@ export const ChangeHistoryPreviewSettingsPopover = ({
         <EuiHorizontalRule margin="none" />
 
         <div css={styles.sections}>
-          {supportedModes.length > 1 ? (
+          {modes.length > 1 ? (
             <ChangeHistoryCompareModeSetting
-              compareMode={compareMode}
-              supportedModes={supportedModes}
-              onCompareModeChange={onCompareModeChange}
+              modes={modes}
+              selectedModeId={selectedModeId}
+              onModeChange={onModeChange}
             />
           ) : null}
           {children}
