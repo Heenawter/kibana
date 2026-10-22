@@ -10,8 +10,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { monaco } from '@kbn/code-editor';
 import { TestProvider } from '../../test_utils/test_providers';
-import type { ChangeHistoryPreviewEditorContext } from './change_history_monaco_diff_preview';
-import { ChangeHistoryMonacoDiffPreview } from './change_history_monaco_diff_preview';
+import type { ChangeHistoryPreviewEditorContext } from './change_history_preview';
+import { ChangeHistoryPreview } from './change_history_preview';
 import { ChangeHistoryPreviewSettingsSection } from './change_history_preview_settings_popover';
 
 const mockFooterContext = jest.fn();
@@ -105,14 +105,14 @@ const mockCreateDiffEditor = monaco.editor.createDiffEditor as jest.Mock;
 const testThemeData = { base: 'vs' as const, inherit: true, rules: [], colors: {} };
 const testThemeDefinition = { id: 'test-theme', getDefinition: () => testThemeData };
 
-const renderPreview = (props: React.ComponentProps<typeof ChangeHistoryMonacoDiffPreview>) =>
+const renderPreview = (props: React.ComponentProps<typeof ChangeHistoryPreview>) =>
   render(
     <TestProvider>
-      <ChangeHistoryMonacoDiffPreview language="yaml" {...props} />
+      <ChangeHistoryPreview language="yaml" {...props} />
     </TestProvider>
   );
 
-describe('ChangeHistoryMonacoDiffPreview', () => {
+describe('ChangeHistoryPreview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFooterContext.mockClear();
@@ -392,7 +392,7 @@ describe('ChangeHistoryMonacoDiffPreview', () => {
     jest.useFakeTimers();
     render(
       <TestProvider>
-        <ChangeHistoryMonacoDiffPreview baseline={{ a: 1 }} target={{ a: 2 }} />
+        <ChangeHistoryPreview baseline={{ a: 1 }} target={{ a: 2 }} />
       </TestProvider>
     );
 
@@ -531,11 +531,7 @@ describe('ChangeHistoryMonacoDiffPreview', () => {
     const second = { hover: { enabled: 'off' as const } };
     rerender(
       <TestProvider>
-        <ChangeHistoryMonacoDiffPreview
-          language="yaml"
-          target={'name: current\n'}
-          editorOptions={second}
-        />
+        <ChangeHistoryPreview language="yaml" target={'name: current\n'} editorOptions={second} />
       </TestProvider>
     );
 

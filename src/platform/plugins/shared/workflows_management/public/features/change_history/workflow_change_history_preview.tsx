@@ -13,7 +13,7 @@ import { css } from '@emotion/react';
 import React, { useMemo, useState } from 'react';
 import type { ChangeHistoryPreviewRenderFn } from '@kbn/change-history-ui';
 import {
-  ChangeHistoryMonacoDiffPreview,
+  ChangeHistoryPreview,
   getChangeHistoryValidationDisplayOptions,
 } from '@kbn/change-history-ui';
 import { getWorkflowChangeHistoryCompareIndicator } from './get_workflow_change_history_compare_indicator';
@@ -70,7 +70,7 @@ const WorkflowChangeHistoryPreview = ({
   );
 
   return (
-    <ChangeHistoryMonacoDiffPreview
+    <ChangeHistoryPreview
       baseline={baselineYaml}
       target={targetYaml}
       language="yaml"

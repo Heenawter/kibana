@@ -13,7 +13,7 @@ import { EuiLoadingSpinner } from '@elastic/eui';
 
 import {
   ChangeHistoryModal,
-  ChangeHistoryMonacoDiffPreview,
+  ChangeHistoryPreview,
   ChangeHistoryProvider,
 } from '@kbn/change-history-ui';
 import { i18n } from '@kbn/i18n';
@@ -78,7 +78,7 @@ export const DashboardChangeHistoryProvider = ({
         return (
           <>
             {props.compareSpec && props.compareSpec.comparisonType === 'vs_row' ? (
-              <ChangeHistoryMonacoDiffPreview
+              <ChangeHistoryPreview
                 baseline={props.compareSpec.baseline.snapshot as object}
                 target={props.compareSpec.target.snapshot as object}
                 compareIndicator={getDashboardChangeHistoryCompareIndicator(props.compareSpec)}

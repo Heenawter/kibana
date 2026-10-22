@@ -18,7 +18,7 @@ import type { ChangeHistoryDiffTelemetry } from '../../types';
 import type {
   ChangeHistoryMonacoLanguage,
   ChangeHistoryPreviewEditorContext,
-} from './change_history_monaco_diff_preview';
+} from './change_history_preview';
 import { buildChangeHistoryUnifiedDiffLayoutStyles } from './change_history_unified_diff_layout';
 import {
   CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS,

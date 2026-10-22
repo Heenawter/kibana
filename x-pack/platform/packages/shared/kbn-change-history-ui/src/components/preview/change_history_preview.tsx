@@ -56,7 +56,7 @@ export interface ChangeHistoryPreviewEditorContext {
   ) => void;
 }
 
-export interface ChangeHistoryMonacoDiffPreviewProps {
+export interface ChangeHistoryPreviewProps {
   /** Older content (Monaco "original"). Strings are used as-is; other values are serialized as pretty JSON. */
   baseline?: string | object;
   /** Newer content (Monaco "modified"), or the sole read-only editor when `baseline` is omitted. */
@@ -101,7 +101,7 @@ const monacoDiffPreviewStyles = {
       width: '100%',
       display: 'flex',
       alignItems: 'center',
-      flexShrink: 0,
+      justifyContent: 'space-between',
       height: CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
       borderTop: euiTheme.border.thin,
     }),
@@ -121,7 +121,7 @@ const monacoDiffPreviewStyles = {
     }),
 };
 
-export const ChangeHistoryMonacoDiffPreview = ({
+export const ChangeHistoryPreview = ({
   baseline,
   target,
   language = 'json',
@@ -133,7 +133,7 @@ export const ChangeHistoryMonacoDiffPreview = ({
   extraSettings,
   containerStyles,
   'data-test-subj': dataTestSubj = 'changeHistoryMonacoPreview',
-}: ChangeHistoryMonacoDiffPreviewProps): JSX.Element => {
+}: ChangeHistoryPreviewProps): JSX.Element => {
   const styles = useMemoCss(monacoDiffPreviewStyles);
   const euiThemeContext = useEuiTheme();
   const baselineComparison = useMemo(

@@ -23,7 +23,7 @@ export type {
   ChangeHistoryListGroupItemProps,
 } from './src/components/modal';
 export {
-  ChangeHistoryMonacoDiffPreview,
+  ChangeHistoryPreview,
   ChangeHistoryPreviewFooterSpacer,
   ChangeHistoryPreviewSettingsSection,
   createChangeHistoryEuiMonacoTheme,
@@ -33,7 +33,7 @@ export {
 export type {
   ChangeHistoryCompareBadgeColor,
   ChangeHistoryCompareIndicator,
-  ChangeHistoryMonacoDiffPreviewProps,
+  ChangeHistoryPreviewProps,
   ChangeHistoryMonacoLanguage,
   ChangeHistoryMonacoTheme,
   ChangeHistoryMonacoThemeDefinition,
