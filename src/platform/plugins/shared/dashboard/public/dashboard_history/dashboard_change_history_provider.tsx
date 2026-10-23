@@ -7,9 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-
-import { EuiLoadingSpinner } from '@elastic/eui';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { ChangeHistoryModal, ChangeHistoryProvider } from '@kbn/change-history-ui';
 import { i18n } from '@kbn/i18n';
@@ -17,13 +15,8 @@ import { i18n } from '@kbn/i18n';
 import { coreServices } from '../services/kibana_services';
 import { createDashboardChangeHistoryAdapter } from './dashboard_change_history_adapter';
 import { renderDashboardChangeHistoryBadge } from './dashboard_change_history_badge';
+import { DashboardChangeHistoryPreview } from './dashboard_change_history_preview';
 import { useDashboardApi } from '../dashboard_api/use_dashboard_api';
-
-// the preview embeds a second dashboard renderer, so only load it once a change is previewed
-const LazyDashboardPreview = lazy(async () => {
-  const { DashboardPreview } = await import('./dashboard_preview');
-  return { default: DashboardPreview };
-});
 
 export interface DashboardChangeHistoryProviderProps {
   children: React.ReactNode;
@@ -69,13 +62,11 @@ export const DashboardChangeHistoryProvider = ({
       objectId={dashboardId}
       adapter={adapter}
       renderPreview={(props) => (
-        <Suspense fallback={<EuiLoadingSpinner size="xl" />}>
-          <LazyDashboardPreview
-            {...props}
-            setPreviewTitle={setPreviewTitle}
-            inheritedTimeRange={dashboardApi?.timeRange$.getValue()}
-          />
-        </Suspense>
+        <DashboardChangeHistoryPreview
+          previewProps={props}
+          setPreviewTitle={setPreviewTitle}
+          inheritedTimeRange={dashboardApi?.timeRange$.getValue()}
+        />
       )}
       renderBadge={renderDashboardChangeHistoryBadge}
       labels={{
@@ -84,7 +75,7 @@ export const DashboardChangeHistoryProvider = ({
         }),
         previewTitle,
       }}
-      features={{ compare: false, restore: true, unsavedChanges: hasUnsavedChanges }}
+      features={{ compare: true, restore: true, unsavedChanges: hasUnsavedChanges }}
       permissions={{ canRestore: !dashboardApi.isManaged }}
       scope={scope}
       analytics={analytics}
